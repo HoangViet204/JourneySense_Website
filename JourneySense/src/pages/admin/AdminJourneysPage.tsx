@@ -4,28 +4,47 @@ import { toast } from 'sonner'
 import api from '../../api/axios'
 import type { AdminJourneyListItemDto, PortalPagedResult } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
-import { formatDate } from '../../utils/format'
+import { displayJourneyStatus, formatDate } from '../../utils/format'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 const card = 'rounded-2xl border border-stone-200/80 bg-white p-5 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]'
 
-function displayJourneyStatus(status?: string | null): string {
-  const s = status?.trim()
-  if (!s) return '—'
-  return s
+type JourneyStatusFilter = '' | 'Planning' | 'InProgress' | 'Completed' | 'Cancelled'
+
+const STATUS_OPTIONS: Array<{ value: JourneyStatusFilter; label: string }> = [
+  { value: '', label: 'Tất cả trạng thái' },
+  { value: 'Planning', label: 'Lên kế hoạch' },
+  { value: 'InProgress', label: 'Đang diễn ra' },
+  { value: 'Completed', label: 'Hoàn thành' },
+  { value: 'Cancelled', label: 'Đã hủy' },
+]
+
+function displayFilterStatus(status: JourneyStatusFilter): string {
+  const opt = STATUS_OPTIONS.find((o) => o.value === status)
+  return opt?.label ?? '—'
+}
+
+function statusPillClass(status?: string | null): string {
+  const s = status?.trim()?.toLowerCase() ?? ''
+  if (s === 'completed') return 'bg-emerald-50 text-emerald-700'
+  if (s === 'inprogress' || s === 'in_progress') return 'bg-amber-50 text-amber-800'
+  if (s === 'cancelled' || s === 'canceled') return 'bg-rose-50 text-rose-700'
+  if (s === 'planning') return 'bg-stone-100 text-stone-800'
+  return 'bg-stone-100 text-stone-800'
 }
 
 export default function AdminJourneysPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<PortalPagedResult<AdminJourneyListItemDto> | null>(null)
+  const [status, setStatus] = useState<JourneyStatusFilter>('')
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const res = await api.get<PortalPagedResult<AdminJourneyListItemDto>>('/api/admin/journeys', {
-        params: { page, pageSize: PAGE_SIZE },
+        params: { page, pageSize: PAGE_SIZE, status: status || undefined },
       })
       setData(res.data)
     } catch (e) {
@@ -34,11 +53,15 @@ export default function AdminJourneysPage() {
     } finally {
       setLoading(false)
     }
-  }, [page])
+  }, [page, status])
 
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    setPage(1)
+  }, [status])
 
   const items = data?.items ?? []
   const totalCount = data?.totalCount ?? 0
@@ -51,9 +74,42 @@ export default function AdminJourneysPage() {
   return (
     <main className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto w-full max-w-6xl space-y-8">
-        <h1 className="font-['Cormorant_Garamond',serif] text-2xl font-semibold text-stone-900 sm:text-3xl">Hành trình</h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="font-['Cormorant_Garamond',serif] text-2xl font-semibold text-stone-900 sm:text-3xl">Hành trình</h1>
+            <p className="mt-1 text-sm text-stone-600">Quản lý danh sách hành trình theo trạng thái.</p>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:items-end">
+            <label className="text-xs font-semibold uppercase tracking-wide text-stone-600">Lọc trạng thái</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as JourneyStatusFilter)}
+              className="h-10 w-full min-w-[220px] rounded-xl border border-stone-200 bg-white px-3 text-sm font-semibold text-stone-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-200"
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value || 'all'} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
         <section className={`${card} overflow-hidden p-0`}>
+          <div className="flex flex-col gap-2 border-b border-stone-100 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="text-sm text-stone-600">
+              {loading ? 'Đang tải…' : totalCount > 0 ? `Tìm thấy ${totalCount} hành trình` : 'Chưa có hành trình'}
+              {status ? <span className="ml-2 text-stone-400">·</span> : null}
+              {status ? <span className="ml-2 font-semibold text-stone-700">Trạng thái: {displayFilterStatus(status)}</span> : null}
+            </div>
+            {!loading && totalCount > 0 && (
+              <div className="text-sm text-stone-600">
+                Trang <span className="font-semibold text-stone-900">{page}</span> / {totalPages}
+              </div>
+            )}
+          </div>
+
           <div className="overflow-x-auto">
             <table className="min-w-[860px] w-full table-fixed text-sm">
               <colgroup>
@@ -99,7 +155,7 @@ export default function AdminJourneysPage() {
                         {row.destinationAddress ?? '—'}
                       </td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-800">
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusPillClass(row.status)}`}>
                           {displayJourneyStatus(row.status)}
                         </span>
                       </td>
@@ -107,11 +163,11 @@ export default function AdminJourneysPage() {
                       <td className="px-4 py-3 text-center">
                         <Link
                           to={`/admin/journeys/${row.id}`}
-                          className="inline-flex items-center justify-center rounded-lg p-2 text-amber-800 transition-colors hover:bg-amber-50"
+                          className="inline-flex items-center justify-center rounded-lg border border-transparent px-3 py-1.5 text-sm font-semibold text-amber-800 transition-colors hover:border-amber-100 hover:bg-amber-50"
                           title="Xem chi tiết"
                           aria-label="Xem chi tiết"
                         >
-                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path
                               strokeLinecap="round"
                               strokeLinejoin="round"
@@ -125,6 +181,7 @@ export default function AdminJourneysPage() {
                               d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                             />
                           </svg>
+                          Chi tiết
                         </Link>
                       </td>
                     </tr>

@@ -2,6 +2,7 @@ import axios from 'axios'
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { useConfirmDialog } from '../../components/ConfirmDialog'
 import {
   ExperienceFormSectionHeader,
   experienceFieldLabel as labelCls,
@@ -77,6 +78,8 @@ export default function StaffEditJourneyPage() {
   const [urlCaption, setUrlCaption] = useState('')
   const [urlIsCover, setUrlIsCover] = useState(false)
   const uploadFileInputRef = useRef<HTMLInputElement>(null)
+
+  const { confirm, dialog } = useConfirmDialog()
 
   useEffect(() => {
     void axios.get<CategoryResponseDto[]>(`${base}/api/categories`).then(({ data }) => {
@@ -206,7 +209,17 @@ export default function StaffEditJourneyPage() {
   }
 
   const remove = async () => {
-    if (!journeyId || !window.confirm('Xóa experience này?')) return
+    if (!journeyId) return
+
+    const ok = await confirm({
+      title: 'Xóa trải nghiệm',
+      message: 'Xóa trải nghiệm này? Thao tác không hoàn tác.',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+      danger: true,
+    })
+    if (!ok) return
+
     setBusy(true)
     try {
       await api.delete(`/api/micro-experiences/${journeyId}`)
@@ -220,7 +233,17 @@ export default function StaffEditJourneyPage() {
   }
 
   const removeExperiencePhoto = async (photoId: string) => {
-    if (!journeyId || !window.confirm('Xoá ảnh này khỏi experience?')) return
+    if (!journeyId) return
+
+    const ok = await confirm({
+      title: 'Xóa ảnh',
+      message: 'Xóa ảnh này khỏi trải nghiệm?',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+      danger: true,
+    })
+    if (!ok) return
+
     setBusy(true)
     try {
       await api.delete(`/api/micro-experiences/${journeyId}/photos/${photoId}`)
@@ -608,6 +631,7 @@ export default function StaffEditJourneyPage() {
           )}
         </div>
       </main>
+      {dialog}
     </div>
   )
 }

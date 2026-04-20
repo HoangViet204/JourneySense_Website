@@ -39,6 +39,53 @@ export interface PortalPagedResult<T> {
   totalCount: number
 }
 
+// ——— TransactionHistoryDtos.cs ———
+
+/** Item lịch sử giao dịch của user (PayOS hoặc đổi bằng điểm). */
+export interface TransactionHistoryItemDto {
+  id: string
+  /** "payos" | "points" */
+  source: string
+  occurredAt: string
+  packageId?: string | null
+  packageTitle?: string | null
+  /** PayOS: purchase|renewal|upgrade. Points: redeem. */
+  action: string
+  /** PayOS: pending|completed|failed|refunded. Points: completed. */
+  status: string
+  amountMoney?: number | null
+  points?: number | null
+  orderCode?: string | null
+}
+
+export interface PayosTransactionHistoryDetailDto {
+  id: string
+  userId: string
+  packageId: string
+  packageTitle?: string | null
+  amount: number
+  type: string
+  status: string
+  orderCode?: string | null
+  paymentMethod?: string | null
+  /** Snapshot json (packages tại thời điểm mua). */
+  itemSnapshot: string
+  createdAt?: string | null
+}
+
+export interface PointsTransactionHistoryDetailDto {
+  id: string
+  userId: string
+  type: string
+  points: number
+  description?: string | null
+  refId?: string | null
+  refType?: string | null
+  packageId?: string | null
+  packageTitle?: string | null
+  createdAt?: string | null
+}
+
 // ——— AdminUserDtos.cs ———
 
 export interface AdminUserListItemDto {
@@ -92,6 +139,28 @@ export interface AdminAnalyticsSummaryResponse {
   experiencesActive: number
   journeysTotal: number
   feedbacksPendingModeration: number
+
+  /** Tổng doanh thu gross (sum amount completed). */
+  revenueTotalVnd?: number | null
+  /** Doanh thu gross 30 ngày gần nhất. */
+  revenue30dVnd?: number | null
+  /** Số giao dịch completed. */
+  completedTransactions?: number | null
+  /** Số lượng gói mua theo `packages.type`. */
+  packagesByType?: Array<{ type: string; count: number }> | null
+}
+
+// ——— TopVisitedPlacesResponse.cs ———
+
+export interface TopVisitedPlacesResponse {
+  rangeDays?: number | null
+  sampleJourneys?: number | null
+  items: Array<{
+    experienceId: string
+    name: string
+    city?: string | null
+    visitedCount: number
+  }>
 }
 
 // ——— AdminJourneyDtos.cs ———
@@ -106,6 +175,61 @@ export interface AdminJourneyListItemDto {
   createdAt?: string | null
   startedAt?: string | null
   completedAt?: string | null
+}
+
+// ——— AdminJourneyProgressDtos.cs ———
+
+export interface AdminJourneyWaypointProgressItemResponse {
+  waypointId: string
+  stopOrder: number
+  visitedCount: number
+  skippedCount: number
+}
+
+export interface AdminJourneyWaypointProgressSummaryResponse {
+  journeyId: string
+  memberCount: number
+  waypoints: AdminJourneyWaypointProgressItemResponse[]
+}
+
+// ——— JourneyPolylineResponse.cs ———
+
+export interface JourneyPolylineResponse {
+  journeyId: string
+  targetWaypointId?: string | null
+  targetExperienceId?: string | null
+  polyline?: string | null
+  points: GeoPointResponse[]
+  distanceMeters?: number | null
+  estimatedDurationMinutes?: number | null
+}
+
+// ——— JourneyMemberRosterItemResponse.cs ———
+
+export interface JourneyMemberRosterItemResponse {
+  memberId: string
+  displayName: string
+  role: string
+  isGuest: boolean
+  joinedAt: string
+  latitude?: number | null
+  longitude?: number | null
+}
+
+// ——— JourneyMemberLocationNotification.cs (SignalR + snapshot) ———
+
+export interface JourneyMemberLocationNotification {
+  journeyId: string
+  memberId: string
+  travelerId?: string | null
+  guestKey?: string | null
+  displayName?: string | null
+  role?: string | null
+  latitude: number
+  longitude: number
+  accuracyMeters?: number | null
+  headingDegrees?: number | null
+  atUtc?: string | null
 }
 
 /** AdminController POST `/api/admin/embeddings/generate` — anonymous object trong code. */

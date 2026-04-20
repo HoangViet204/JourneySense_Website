@@ -146,7 +146,6 @@ export default function PortalProfilePage() {
                     {profile.fullName?.trim() || '—'}
                   </p>
                   <p className="mt-1 break-all text-sm text-stone-600">{profile.email}</p>
-                  <p className="mt-2 font-mono text-[11px] text-stone-400">{profile.userId}</p>
                 </div>
               </div>
             </header>

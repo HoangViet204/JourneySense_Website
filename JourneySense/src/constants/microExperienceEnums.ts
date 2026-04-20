@@ -6,49 +6,49 @@
  */
 
 export const VEHICLE_TYPE_OPTIONS = [
-  { value: 'walking', label: 'Walking' },
-  { value: 'bicycle', label: 'Bicycle' },
-  { value: 'motorbike', label: 'Motorbike' },
-  { value: 'car', label: 'Car' },
+  { value: 'walking', label: 'Đi bộ' },
+  { value: 'bicycle', label: 'Xe đạp' },
+  { value: 'motorbike', label: 'Xe máy' },
+  { value: 'car', label: 'Ô tô' },
 ] as const
 
 export const TIME_OF_DAY_OPTIONS = [
-  { value: 'Morning', label: 'Morning' },
-  { value: 'Afternoon', label: 'Afternoon' },
-  { value: 'Evening', label: 'Evening' },
-  { value: 'Night', label: 'Night' },
+  { value: 'Morning', label: 'Buổi sáng' },
+  { value: 'Afternoon', label: 'Buổi chiều' },
+  { value: 'Evening', label: 'Buổi tối' },
+  { value: 'Night', label: 'Ban đêm' },
 ] as const
 
 export const WEATHER_TYPE_OPTIONS = [
-  { value: 'Sunny', label: 'Sunny' },
-  { value: 'Cloudy', label: 'Cloudy' },
-  { value: 'Rainy', label: 'Rainy' },
+  { value: 'Sunny', label: 'Nắng' },
+  { value: 'Cloudy', label: 'Nhiều mây' },
+  { value: 'Rainy', label: 'Mưa' },
 ] as const
 
 export const SEASON_TYPE_OPTIONS = [
-  { value: 'YearRound', label: 'Year round' },
-  { value: 'Summer', label: 'Summer' },
-  { value: 'Autumn', label: 'Autumn' },
-  { value: 'Winter', label: 'Winter' },
-  { value: 'Spring', label: 'Spring' },
+  { value: 'YearRound', label: 'Quanh năm' },
+  { value: 'Summer', label: 'Mùa hè' },
+  { value: 'Autumn', label: 'Mùa thu' },
+  { value: 'Winter', label: 'Mùa đông' },
+  { value: 'Spring', label: 'Mùa xuân' },
 ] as const
 
 /** VibeType — field tags */
 export const VIBE_TYPE_OPTIONS = [
-  { value: 'Chill', label: 'Chill' },
-  { value: 'Relax', label: 'Relax' },
-  { value: 'Explorer', label: 'Explorer' },
-  { value: 'Foodie', label: 'Foodie' },
-  { value: 'LocalVibes', label: 'Local vibes' },
-  { value: 'Adventure', label: 'Adventure' },
-  { value: 'Photographer', label: 'Photographer' },
+  { value: 'Chill', label: 'Thư giãn' },
+  { value: 'Relax', label: 'Thư thái' },
+  { value: 'Explorer', label: 'Khám phá' },
+  { value: 'Foodie', label: 'Ẩm thực' },
+  { value: 'LocalVibes', label: 'Bản địa' },
+  { value: 'Adventure', label: 'Mạo hiểm' },
+  { value: 'Photographer', label: 'Chụp ảnh' },
 ] as const
 
 export const CROWD_LEVEL_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'quiet', label: 'Quiet' },
-  { value: 'normal', label: 'Normal' },
-  { value: 'busy', label: 'Busy' },
+  { value: 'all', label: 'Không xác định' },
+  { value: 'quiet', label: 'Yên tĩnh' },
+  { value: 'normal', label: 'Bình thường' },
+  { value: 'busy', label: 'Đông' },
 ] as const
 
 export function parseAmenityInput(raw: string): string[] {

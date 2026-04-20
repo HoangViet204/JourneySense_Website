@@ -3,13 +3,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
+import { useConfirmDialog } from '../../components/ConfirmDialog'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
 import { TIME_OF_DAY_OPTIONS } from '../../constants/microExperienceEnums'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
 import type { CategoryResponseDto, MicroExperienceListItemResponse } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 
-const PAGE_SIZE = 12
+const PAGE_SIZE = 10
 
 const initialApplied = {
   keyword: '',
@@ -33,6 +34,8 @@ export default function StaffDashboardPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const { confirm, dialog } = useConfirmDialog()
 
   useEffect(() => {
     void axios.get<CategoryResponseDto[]>(`${base}/api/categories`).then(({ data }) => {
@@ -84,7 +87,16 @@ export default function StaffDashboardPage() {
 
   const deleteRow = async (id: string, name: string | null | undefined) => {
     const label = name?.trim() || id
-    if (!window.confirm(`Xóa trải nghiệm «${label}»? Thao tác không hoàn tác.`)) return
+
+    const ok = await confirm({
+      title: 'Xóa trải nghiệm',
+      message: `Xóa trải nghiệm «${label}»? Thao tác không hoàn tác.`,
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+      danger: true,
+    })
+    if (!ok) return
+
     setDeletingId(id)
     try {
       await api.delete(`/api/micro-experiences/${id}`)
@@ -189,7 +201,7 @@ export default function StaffDashboardPage() {
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-stone-500 mb-1">Mood (tag / filter API)</label>
+              <label className="block text-[11px] font-semibold text-stone-500 mb-1">Mood</label>
               <input
                 value={filterMood}
                 onChange={(e) => setFilterMood(e.target.value)}
@@ -342,6 +354,7 @@ export default function StaffDashboardPage() {
           )}
         </div>
       </main>
+      {dialog}
     </div>
   )
 }

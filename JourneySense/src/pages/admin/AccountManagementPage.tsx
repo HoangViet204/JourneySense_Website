@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
+import { useConfirmDialog } from '../../components/ConfirmDialog'
 import { fetchAdminUsers } from '../../actions/adminUserActions'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { getApiErrorMessage } from '../../utils/apiMessage'
@@ -21,7 +22,7 @@ function statusBadgeClass(status: string) {
     : 'bg-rose-50 text-rose-800 ring-1 ring-rose-200/70'
 }
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 const shell =
   'min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] p-4 sm:p-6 lg:p-8'
@@ -44,6 +45,8 @@ export default function AccountManagementPage() {
   const [staffPassword, setStaffPassword] = useState('')
   const [staffBusy, setStaffBusy] = useState(false)
 
+  const { confirm, dialog } = useConfirmDialog()
+
   const apiRole = roleFilter === 'all' ? undefined : roleFilter
   const apiStatus = statusFilter === 'all' ? undefined : statusFilter
 
@@ -63,9 +66,20 @@ export default function AccountManagementPage() {
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
   const createStaff = async () => {
+    const email = staffEmail.trim()
+    if (!email) return
+
+    const ok = await confirm({
+      title: 'Tạo tài khoản nhân viên',
+      message: `Tạo tài khoản nhân viên cho «${email}»?`,
+      confirmText: 'Tạo',
+      cancelText: 'Hủy',
+    })
+    if (!ok) return
+
     setStaffBusy(true)
     try {
-      await api.post('/api/admin/staff-accounts', { email: staffEmail.trim(), password: staffPassword })
+      await api.post('/api/admin/staff-accounts', { email, password: staffPassword })
       toast.success('Đã tạo tài khoản nhân viên')
       setStaffEmail('')
       setStaffPassword('')
@@ -78,8 +92,9 @@ export default function AccountManagementPage() {
   }
 
   return (
-    <main className={shell}>
-      <div className="mx-auto w-full max-w-6xl space-y-8">
+    <>
+      <main className={shell}>
+        <div className="mx-auto w-full max-w-6xl space-y-8">
         <header>
           <h1 className="font-['Cormorant_Garamond',serif] text-2xl font-semibold text-stone-900 sm:text-3xl">
             Tài khoản
@@ -359,7 +374,9 @@ export default function AccountManagementPage() {
             </section>
           </>
         )}
-      </div>
-    </main>
+        </div>
+      </main>
+      {dialog}
+    </>
   )
 }

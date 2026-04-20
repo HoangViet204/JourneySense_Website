@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import api from '../../api/axios'
 import type { GeoPointResponse, JourneyDetailResponse, JourneyWaypointResponse } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
-import { formatDate } from '../../utils/format'
+import { displayJourneyStatus, formatDate } from '../../utils/format'
 
 type LngLat = [number, number]
 
@@ -265,12 +265,22 @@ export default function AdminJourneyDetailPage() {
       <div className="mx-auto w-full max-w-6xl space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="font-['Cormorant_Garamond',serif] text-2xl font-semibold text-stone-900 sm:text-3xl">Chi tiết hành trình</h1>
-          <Link
-            to="/admin/journeys"
-            className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
-          >
-            Quay lại danh sách
-          </Link>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {journeyId && (
+              <Link
+                to={`/admin/journeys/${journeyId}/tracking`}
+                className="inline-flex items-center justify-center rounded-xl bg-[#c5a070] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f]"
+              >
+                Xem hành trình thực tế
+              </Link>
+            )}
+            <Link
+              to="/admin/journeys"
+              className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+            >
+              Quay lại danh sách
+            </Link>
+          </div>
         </div>
 
         {loading && <div className={`${card} py-16 text-center text-stone-500`}>Đang tải dữ liệu…</div>}
@@ -291,7 +301,7 @@ export default function AdminJourneyDetailPage() {
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Trạng thái</p>
-                  <p className="mt-1 text-sm text-stone-700">{detail.status ?? '—'}</p>
+                  <p className="mt-1 text-sm text-stone-700">{displayJourneyStatus(detail.status)}</p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Tạo lúc</p>
@@ -302,7 +312,7 @@ export default function AdminJourneyDetailPage() {
 
             <section className={card}>
               <div className="flex items-center justify-between gap-4">
-                <h2 className="font-['Cormorant_Garamond',serif] text-lg font-semibold text-stone-900">Overview map</h2>
+                <h2 className="font-['Cormorant_Garamond',serif] text-lg font-semibold text-stone-900">Bản đồ tổng quan</h2>
                 {!goongMapKey && (
                   <span className="text-xs font-semibold text-rose-700">Thiếu VITE_GOONG_MAP_KEY</span>
                 )}
@@ -333,7 +343,7 @@ export default function AdminJourneyDetailPage() {
                     </colgroup>
                     <thead>
                       <tr className="bg-[#f5f0e8] text-left text-xs font-semibold uppercase tracking-wide text-stone-600">
-                        <th className="px-4 py-3">Stop</th>
+                        <th className="px-4 py-3">STT</th>
                         <th className="px-4 py-3">Tên</th>
                         <th className="px-4 py-3">Địa chỉ</th>
                       </tr>

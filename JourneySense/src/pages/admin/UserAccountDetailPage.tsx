@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
+import { useConfirmDialog } from '../../components/ConfirmDialog'
 import type { AdminUserDetailDto, PortalProfileResponse } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { normalizeAdminUserDetailPayload } from '../../utils/adminUserDetail'
@@ -74,6 +75,8 @@ export default function UserAccountDetailPage() {
   const [busy, setBusy] = useState(false)
   const [avatarBroken, setAvatarBroken] = useState(false)
 
+  const { confirm, dialog } = useConfirmDialog()
+
   const load = useCallback(async () => {
     if (!userId) return
     setLoading(true)
@@ -122,6 +125,20 @@ export default function UserAccountDetailPage() {
 
   const patchStatus = async (status: 'active' | 'suspended') => {
     if (!userId) return
+
+    const label = account?.fullName?.trim() || account?.email?.trim() || userId
+    const actionText = status === 'suspended' ? 'Đình chỉ' : 'Kích hoạt lại'
+    const note = status === 'suspended' ? 'Tài khoản sẽ không thể đăng nhập cho đến khi được kích hoạt lại.' : ''
+
+    const ok = await confirm({
+      title: `${actionText} tài khoản`,
+      message: `Bạn có chắc muốn ${status === 'suspended' ? 'đình chỉ' : 'kích hoạt lại'} tài khoản «${label}» không?${note ? `\n\n${note}` : ''}`,
+      confirmText: actionText,
+      cancelText: 'Hủy',
+      danger: status === 'suspended',
+    })
+    if (!ok) return
+
     setBusy(true)
     try {
       await api.patch(`/api/admin/users/${userId}/status`, {
@@ -223,9 +240,6 @@ export default function UserAccountDetailPage() {
               {displayName && (
                 <p className="mt-1 break-all text-sm text-stone-600">{account.email}</p>
               )}
-              <p className="mt-2 max-w-full truncate rounded-lg bg-stone-50 px-2 py-1 font-mono text-[11px] text-stone-500 ring-1 ring-stone-100 sm:inline-block">
-                {account.id}
-              </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <span className={`inline-flex rounded-full px-3.5 py-1 text-xs font-semibold ${rolePill(account.role)}`}>
                   {displayRole(account.role)}
@@ -233,6 +247,15 @@ export default function UserAccountDetailPage() {
                 <span className={`inline-flex rounded-full px-3.5 py-1 text-xs font-semibold ${statusPill(account.status)}`}>
                   {displayStatus(account.status)}
                 </span>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Link
+                  to={`/admin/accounts/${userId}/transactions`}
+                  className="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-[#9a7b4f] shadow-sm ring-1 ring-stone-200/80 transition-colors hover:bg-stone-50"
+                >
+                  Lịch sử giao dịch
+                </Link>
               </div>
             </div>
           </div>
@@ -311,6 +334,7 @@ export default function UserAccountDetailPage() {
           </div>
         </section>
       </div>
+      {dialog}
     </main>
   )
 }

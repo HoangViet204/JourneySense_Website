@@ -5,7 +5,7 @@ import api from '../../api/axios'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
 import type { ExperiencePhotoResponse, MicroExperienceDetailResponse } from '../../types/portal'
-import { formatDate } from '../../utils/format'
+import { displayMicroExperienceTagVi, formatDate } from '../../utils/format'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { resolveApiMediaUrl } from '../../utils/mediaUrl'
 
@@ -18,7 +18,7 @@ function ChipList({ items }: { items?: string[] | null }) {
           key={x}
           className="px-2.5 py-1 rounded-lg bg-stone-100 text-stone-800 text-xs font-medium border border-stone-200/80"
         >
-          {x}
+          {displayMicroExperienceTagVi(x)}
         </span>
       ))}
     </div>
@@ -233,7 +233,9 @@ export default function StaffExperienceDetailPage() {
                     )}
                   </DlBlock>
                   <DlBlock label="Khoảng giá">{detail.priceRange || '—'}</DlBlock>
-                  <DlBlock label="Mức đông">{detail.crowdLevel || '—'}</DlBlock>
+                  <DlBlock label="Mức đông">
+                    {detail.crowdLevel ? displayMicroExperienceTagVi(detail.crowdLevel) : '—'}
+                  </DlBlock>
                 </dl>
               </section>
 
@@ -262,7 +264,7 @@ export default function StaffExperienceDetailPage() {
                   <ChipList items={detail.seasonality} />
                 </div>
                 <div>
-                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-2">Tags / vibe</p>
+                  <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-2">Thẻ phong cách</p>
                   <ChipList items={detail.tags} />
                 </div>
                 <div>

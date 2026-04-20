@@ -1,7 +1,10 @@
-import { useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import PortalUserMenu from '../components/portal/PortalUserMenu'
+import api from '../api/axios'
+import { PORTAL_PROFILE_CHANGED_EVENT } from '../constants/portalEvents'
 import { useAppSelector } from '../store/hooks'
+import type { PortalProfileResponse } from '../types/portal'
 
 const nav: { to: string; label: string; icon: ReactNode }[] = [
   {
@@ -71,6 +74,32 @@ const nav: { to: string; label: string; icon: ReactNode }[] = [
 export default function AdminLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { email, role } = useAppSelector((s) => s.auth)
+
+  const [fullNameHint, setFullNameHint] = useState<string | null>(null)
+
+  const loadProfileBrief = useCallback(async () => {
+    if (!email) return
+    try {
+      const { data } = await api.get<PortalProfileResponse>('/api/profile')
+      setFullNameHint(data.fullName?.trim() ? data.fullName : null)
+    } catch {
+      setFullNameHint(null)
+    }
+  }, [email])
+
+  useEffect(() => {
+    void loadProfileBrief()
+  }, [loadProfileBrief])
+
+  useEffect(() => {
+    const onChanged = () => {
+      void loadProfileBrief()
+    }
+    window.addEventListener(PORTAL_PROFILE_CHANGED_EVENT, onChanged)
+    return () => window.removeEventListener(PORTAL_PROFILE_CHANGED_EVENT, onChanged)
+  }, [loadProfileBrief])
+
+  const displayName = fullNameHint?.trim() || email?.trim() || ''
 
   const roleLabelVi =
     role === 'admin' ? 'Quản trị viên' : role === 'staff' ? 'Nhân viên' : role === 'traveler' ? 'Du khách' : role
@@ -143,7 +172,7 @@ export default function AdminLayout() {
       <div className="flex-1 flex flex-col min-w-0">
         <header className="shrink-0 flex items-center justify-between gap-4 px-4 sm:px-6 py-3 bg-white/70 backdrop-blur-sm border-b border-stone-200/80">
           <div className="min-w-0 text-sm text-stone-600">
-            <span className="font-medium text-stone-800">{email}</span>
+            <span className="font-medium text-stone-800">{displayName}</span>
             {role ? <span className="ml-2 text-stone-600">({roleLabelVi})</span> : null}
           </div>
           <PortalUserMenu profilePath="/admin/profile" />

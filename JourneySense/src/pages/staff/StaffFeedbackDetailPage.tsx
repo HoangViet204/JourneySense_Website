@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
+import { useConfirmDialog } from '../../components/ConfirmDialog'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
 import type { StaffFeedbackDetailDto } from '../../types/portal'
@@ -23,6 +24,8 @@ export default function StaffFeedbackDetailPage() {
   const [reason, setReason] = useState('')
   const [reportReason, setReportReason] = useState('')
   const [busy, setBusy] = useState(false)
+
+  const { confirm, dialog } = useConfirmDialog()
 
   const load = useCallback(async () => {
     if (!feedbackId) return
@@ -56,6 +59,17 @@ export default function StaffFeedbackDetailPage() {
 
   const moderate = async (decision: 'approve' | 'reject') => {
     if (!feedbackId) return
+
+    const actionText = decision === 'approve' ? 'Duyệt' : 'Từ chối'
+    const ok = await confirm({
+      title: `${actionText} phản hồi`,
+      message: `Bạn có chắc muốn ${decision === 'approve' ? 'duyệt' : 'từ chối'} phản hồi này không?`,
+      confirmText: actionText,
+      cancelText: 'Hủy',
+      danger: decision === 'reject',
+    })
+    if (!ok) return
+
     setBusy(true)
     const t = toast.loading(decision === 'approve' ? 'Đang duyệt…' : 'Đang từ chối…')
     try {
@@ -74,6 +88,16 @@ export default function StaffFeedbackDetailPage() {
 
   const reportUser = async () => {
     if (!row?.travelerId) return
+
+    const ok = await confirm({
+      title: 'Gửi báo cáo',
+      message: 'Gửi báo cáo người dùng này?',
+      confirmText: 'Gửi báo cáo',
+      cancelText: 'Hủy',
+      danger: true,
+    })
+    if (!ok) return
+
     setBusy(true)
     const t = toast.loading('Đang gửi báo cáo…')
     try {
@@ -209,6 +233,7 @@ export default function StaffFeedbackDetailPage() {
           </>
         )}
       </main>
+      {dialog}
     </div>
   )
 }

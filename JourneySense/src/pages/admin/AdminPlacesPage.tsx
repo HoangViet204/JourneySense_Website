@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
+import { useConfirmDialog } from '../../components/ConfirmDialog'
 import type {
   AdminEmbeddingGenerateResponse,
   CategoryResponseDto,
@@ -10,7 +11,7 @@ import type {
 } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 
-const PAGE_SIZE = 12
+const PAGE_SIZE = 10
 
 const card =
   'rounded-2xl border border-stone-200/80 bg-white p-5 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]'
@@ -36,6 +37,8 @@ export default function AdminPlacesPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [embedLoading, setEmbedLoading] = useState(false)
+
+  const { confirm, dialog } = useConfirmDialog()
 
   useEffect(() => {
     void axios.get<CategoryResponseDto[]>(`${base}/api/categories`).then(({ data }) => {
@@ -84,6 +87,16 @@ export default function AdminPlacesPage() {
   }, [allItems, page])
 
   const runEmbeddings = async () => {
+    if (embedLoading) return
+
+    const ok = await confirm({
+      title: 'Tạo embedding',
+      message: 'Tạo embedding cho toàn bộ địa điểm?\n\nThao tác này có thể mất vài phút.',
+      confirmText: 'Tạo',
+      cancelText: 'Hủy',
+    })
+    if (!ok) return
+
     setEmbedLoading(true)
     const t = toast.loading('Đang tạo embedding…')
     try {
@@ -108,8 +121,9 @@ export default function AdminPlacesPage() {
   }
 
   return (
-    <main className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto w-full max-w-6xl space-y-8">
+    <>
+      <main className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] p-4 sm:p-6 lg:p-8">
+        <div className="mx-auto w-full max-w-6xl space-y-8">
         <h1 className="font-['Cormorant_Garamond',serif] text-2xl font-semibold text-stone-900 sm:text-3xl">Địa điểm</h1>
 
         <section className={card}>
@@ -266,7 +280,9 @@ export default function AdminPlacesPage() {
             <p className="py-10 text-center text-sm text-stone-500">Không có địa điểm phù hợp.</p>
           )}
         </section>
-      </div>
-    </main>
+        </div>
+      </main>
+      {dialog}
+    </>
   )
 }

@@ -2,12 +2,16 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import AdminLayout from '../layouts/AdminLayout'
 import StaffLayout from '../layouts/StaffLayout'
 import AccountManagementPage from '../pages/admin/AccountManagementPage'
+import AdminAuditDetailPage from '../pages/admin/AdminAuditDetailPage'
 import AdminAuditPage from '../pages/admin/AdminAuditPage'
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
 import AdminJourneyDetailPage from '../pages/admin/AdminJourneyDetailPage'
 import AdminJourneysPage from '../pages/admin/AdminJourneysPage'
+import AdminJourneyTrackingPage from '../pages/admin/AdminJourneyTrackingPage'
 import AdminPlaceDetailPage from '../pages/admin/AdminPlaceDetailPage'
 import AdminPlacesPage from '../pages/admin/AdminPlacesPage'
+import AdminUserTransactionDetailPage from '../pages/admin/AdminUserTransactionDetailPage'
+import AdminUserTransactionsPage from '../pages/admin/AdminUserTransactionsPage'
 import UserAccountDetailPage from '../pages/admin/UserAccountDetailPage'
 import LoginPage from '../pages/LoginPage'
 import StaffCreateJourneyPage from '../pages/staff/StaffCreateJourneyPage'
@@ -39,11 +43,15 @@ export default function AppRoutes() {
         <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="journeys" element={<AdminJourneysPage />} />
         <Route path="journeys/:journeyId" element={<AdminJourneyDetailPage />} />
+        <Route path="journeys/:journeyId/tracking" element={<AdminJourneyTrackingPage />} />
         <Route path="places" element={<AdminPlacesPage />} />
         <Route path="places/:placeId" element={<AdminPlaceDetailPage />} />
         <Route path="accounts" element={<AccountManagementPage />} />
         <Route path="accounts/:userId" element={<UserAccountDetailPage />} />
+        <Route path="accounts/:userId/transactions" element={<AdminUserTransactionsPage />} />
+        <Route path="accounts/:userId/transactions/:source/:id" element={<AdminUserTransactionDetailPage />} />
         <Route path="audit" element={<AdminAuditPage />} />
+        <Route path="audit/:auditId" element={<AdminAuditDetailPage />} />
         <Route path="profile" element={<PortalProfilePage />} />
       </Route>
 

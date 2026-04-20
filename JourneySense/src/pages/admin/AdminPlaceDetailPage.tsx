@@ -3,7 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
 import type { ExperiencePhotoResponse, MicroExperienceDetailResponse } from '../../types/portal'
-import { formatDate } from '../../utils/format'
+import { displayMicroExperienceTagVi, formatDate } from '../../utils/format'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { resolveApiMediaUrl } from '../../utils/mediaUrl'
 
@@ -26,7 +26,7 @@ function ChipList({ items }: { items?: string[] | null }) {
           key={x}
           className="rounded-full bg-stone-50 px-3 py-1 text-xs font-medium text-stone-800 ring-1 ring-stone-200/80"
         >
-          {x}
+          {displayMicroExperienceTagVi(x)}
         </span>
       ))}
     </div>
@@ -262,7 +262,9 @@ export default function AdminPlaceDetailPage() {
                 </div>
                 <div className="rounded-2xl border border-stone-100 bg-white p-4 ring-1 ring-stone-100/80">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">Mức đông</p>
-                  <p className="mt-1 text-sm text-stone-900">{detail.crowdLevel || '—'}</p>
+                  <p className="mt-1 text-sm text-stone-900">
+                    {detail.crowdLevel ? displayMicroExperienceTagVi(detail.crowdLevel) : '—'}
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-stone-100 bg-white p-4 sm:col-span-2 ring-1 ring-stone-100/80">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">Giờ mở cửa</p>

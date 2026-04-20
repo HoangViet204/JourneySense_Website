@@ -15,7 +15,7 @@ const initialState: AdminUsersState = {
   error: null,
   items: [],
   page: 1,
-  pageSize: 20,
+  pageSize: 10,
   totalCount: 0,
 }
 

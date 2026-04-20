@@ -150,7 +150,7 @@ export default function MicroExperienceExtraFields({
           />
         </FieldGroup>
 
-        <FieldGroup title="Mùa & giai đoạn">
+        <FieldGroup title="Mùa và giai đoạn">
           <ChipRow
             options={SEASON_TYPE_OPTIONS}
             selected={seasonality}
@@ -162,20 +162,20 @@ export default function MicroExperienceExtraFields({
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:gap-5 lg:grid-cols-2 lg:items-stretch">
-        <FieldGroup title="Tags & tiện ích">
-          <p className={fieldLabel}>Vibe</p>
+        <FieldGroup title="Thẻ phong cách và tiện ích">
+          <p className={fieldLabel}>Phong cách</p>
           <ChipRow
             options={VIBE_TYPE_OPTIONS}
             selected={tags}
             onToggle={onTagsChange}
             activeClass="bg-violet-50 border-violet-300 text-violet-950"
           />
-          <label className={`${fieldLabel} mt-4`}>Tags bổ sung</label>
+          <label className={`${fieldLabel} mt-4`}>Thẻ bổ sung</label>
           <textarea
             value={tagsExtraInput}
             onChange={(e) => onTagsExtraInputChange(e.target.value)}
             rows={4}
-            placeholder="cafe, student-food…"
+            placeholder="cà phê, đồ ăn sinh viên…"
             className={textareaBalanced}
           />
           <label className={`${fieldLabel} mt-4`}>Tiện ích</label>
@@ -183,18 +183,18 @@ export default function MicroExperienceExtraFields({
             value={amenityInput}
             onChange={(e) => onAmenityInputChange(e.target.value)}
             rows={4}
-            placeholder={'parking\nwifi'}
+            placeholder={'bãi đỗ xe\nwifi'}
             className={`${textareaBalanced} font-mono text-[13px]`}
           />
         </FieldGroup>
 
-        <FieldGroup title="Vận hành & giá">
+        <FieldGroup title="Vận hành và giá">
           <label className={fieldLabel}>Giờ mở cửa</label>
           <textarea
             value={openingHours}
             onChange={(e) => onOpeningHoursChange(e.target.value)}
             rows={6}
-            placeholder='Ví dụ JSON: {"mon": "9:00-21:00"} hoặc mô tả ngắn'
+            placeholder="Ví dụ: T2–T6 9:00–21:00; T7–CN 8:00–22:00"
             className={`${textareaBalanced} font-mono text-[13px]`}
           />
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -204,7 +204,7 @@ export default function MicroExperienceExtraFields({
                 value={priceRange}
                 onChange={(e) => onPriceRangeChange(e.target.value)}
                 className={inputCls}
-                placeholder="50k–150k…"
+                placeholder="50.000–150.000…"
               />
             </div>
             <div>

@@ -9,7 +9,7 @@ import { getApiErrorMessage } from '../../utils/apiMessage'
 import { formatDate } from '../../utils/format'
 import { moderationStatusBadgeClass, moderationStatusVi } from '../../utils/staffFeedbackLabels'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 export default function StaffFeedbackPage() {
   const { setSidebarCollapsed } = useOutletContext<StaffOutletContext>()
