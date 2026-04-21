@@ -31,6 +31,13 @@ export function displayJourneyStatus(status?: string | null): string {
   return s
 }
 
+export function isJourneyInProgressStatus(status?: string | null): boolean {
+  const s = status?.trim()
+  if (!s) return false
+  const key = s.toLowerCase()
+  return key === 'inprogress' || key === 'in_progress'
+}
+
 export function displayMicroExperienceTagVi(raw: string): string {
   const s = raw?.trim()
   if (!s) return '—'

@@ -140,21 +140,6 @@ export default function AdminDashboardPage() {
     return topVisited.slice(0, 8).map((x) => ({ name: x.name, value: x.visitedCount }))
   }, [topVisited])
 
-  const topVisitedCities = useMemo(() => {
-    const rows = topVisited ?? []
-    const map = new Map<string, { city: string; visitedCount: number; places: number }>()
-    for (const x of rows) {
-      const city = (x.city ?? '').trim() || '—'
-      const prev = map.get(city)
-      if (!prev) map.set(city, { city, visitedCount: x.visitedCount, places: 1 })
-      else {
-        prev.visitedCount += x.visitedCount
-        prev.places += 1
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => b.visitedCount - a.visitedCount)
-  }, [topVisited])
-
   const hasMonetization = Boolean(
     summary &&
       (summary.revenueTotalVnd != null ||
@@ -163,7 +148,6 @@ export default function AdminDashboardPage() {
   )
 
   const chartCard = 'rounded-2xl border border-stone-200/80 bg-white p-5 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]'
-
 
   return (
     <main className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] p-4 sm:p-6 lg:p-8">

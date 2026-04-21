@@ -16,7 +16,7 @@ import type {
 } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { getStoredAccessToken } from '../../utils/authStorage'
-import { displayJourneyStatus } from '../../utils/format'
+import { displayJourneyStatus, isJourneyInProgressStatus } from '../../utils/format'
 
 type LngLat = [number, number]
 
@@ -168,6 +168,10 @@ function safeRemoveMarkers(markers: GoongMarkerInstance[]) {
 function isCompletedStatus(status?: string | null): boolean {
   const s = status?.toLowerCase() ?? ''
   return s === 'completed' || s === 'complete'
+}
+
+function canLiveTrackStatus(status?: string | null): boolean {
+  return isJourneyInProgressStatus(status)
 }
 
 function sortWaypoints(waypoints: JourneyWaypointResponse[]): JourneyWaypointResponse[] {
@@ -564,6 +568,11 @@ export default function AdminJourneyTrackingPage() {
       return
     }
 
+    if (!canLiveTrackStatus(detail.status)) {
+      setMembers([])
+      return
+    }
+
     let cancelled = false
 
     const init = async () => {
@@ -589,6 +598,7 @@ export default function AdminJourneyTrackingPage() {
     if (!journeyId) return
     if (!detail) return
     if (isCompletedStatus(detail.status)) return
+    if (!canLiveTrackStatus(detail.status)) return
 
     const resolvedBase = base || (typeof window !== 'undefined' ? window.location.origin : '')
     if (!resolvedBase) return
@@ -683,7 +693,7 @@ export default function AdminJourneyTrackingPage() {
   const canShowMap = Boolean(goongMapKey)
 
   const gpsStatusText = useMemo(() => {
-    if (!detail || isCompletedStatus(detail.status)) return null
+    if (!detail || isCompletedStatus(detail.status) || !canLiveTrackStatus(detail.status)) return null
     if (!members.length) return 'Chưa có thành viên trong hành trình.'
     const withGps = mapData.memberPoints.length
     if (withGps <= 0) return 'Chưa có GPS từ thành viên (có thể chưa bật quyền vị trí hoặc GPS chưa gửi lên server).'

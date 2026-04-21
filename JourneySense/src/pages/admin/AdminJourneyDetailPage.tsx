@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import api from '../../api/axios'
 import type { GeoPointResponse, JourneyDetailResponse, JourneyWaypointResponse } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
-import { displayJourneyStatus, formatDate } from '../../utils/format'
+import { displayJourneyStatus, formatDate, isJourneyInProgressStatus } from '../../utils/format'
 
 type LngLat = [number, number]
 
@@ -260,6 +260,8 @@ export default function AdminJourneyDetailPage() {
     renderOverviewMap({ map, sdk, markersRef, mapData })
   }, [mapData])
 
+  const canViewLiveTracking = useMemo(() => isJourneyInProgressStatus(detail?.status), [detail?.status])
+
   return (
     <main className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto w-full max-w-6xl space-y-6">
@@ -267,12 +269,23 @@ export default function AdminJourneyDetailPage() {
           <h1 className="font-['Cormorant_Garamond',serif] text-2xl font-semibold text-stone-900 sm:text-3xl">Chi tiết hành trình</h1>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             {journeyId && (
-              <Link
-                to={`/admin/journeys/${journeyId}/tracking`}
-                className="inline-flex items-center justify-center rounded-xl bg-[#c5a070] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f]"
-              >
-                Xem hành trình thực tế
-              </Link>
+              canViewLiveTracking ? (
+                <Link
+                  to={`/admin/journeys/${journeyId}/tracking`}
+                  className="inline-flex items-center justify-center rounded-xl bg-[#c5a070] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f]"
+                >
+                  Xem hành trình thực tế
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  title="Chỉ xem được khi hành trình đang diễn ra"
+                  className="inline-flex cursor-not-allowed items-center justify-center rounded-xl bg-stone-200 px-4 py-2 text-sm font-semibold text-stone-500 shadow-sm"
+                >
+                  Xem hành trình thực tế
+                </button>
+              )
             )}
             <Link
               to="/admin/journeys"
