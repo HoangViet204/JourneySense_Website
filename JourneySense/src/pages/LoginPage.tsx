@@ -48,7 +48,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col font-['Cormorant_Garamond',serif]">
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-4 bg-[#faf8f3]/90 backdrop-blur-sm border-b border-amber-100/60">
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-4 bg-stone-50/90 backdrop-blur-sm border-b border-amber-100/60">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-amber-400 flex items-center justify-center shadow-sm">
             <svg viewBox="0 0 24 24" className="w-4 h-4 text-white fill-current">
@@ -59,7 +59,7 @@ export default function LoginPage() {
           <span className="text-lg font-semibold tracking-wide text-stone-700">Journey Sense</span>
         </div>
         <div className="flex items-center gap-8 text-sm text-stone-500 font-['Lato',sans-serif]">
-          <span className="text-stone-400">Admin / Staff portal</span>
+          <span className="text-stone-400">Cổng quản trị / nhân viên</span>
         </div>
       </nav>
 
@@ -72,23 +72,48 @@ export default function LoginPage() {
                 "url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=900&auto=format&fit=crop')",
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/40" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/15 to-black/55" />
           <div className="relative z-10 flex flex-col justify-end pb-16 px-10">
-            <h1 className="text-4xl lg:text-5xl font-bold text-white leading-tight drop-shadow-lg mb-3">
-              Welcome back to
-              <br />
-              your journey
-            </h1>
-            <p className="text-white/80 text-sm font-['Lato',sans-serif] tracking-wide mb-8">Staff &amp; admin sign in.</p>
+            <div className="max-w-md">
+              <h1 className="text-4xl lg:text-5xl font-bold text-white leading-tight drop-shadow-lg mb-3">
+                <span className="block">
+                  Chào mừng bạn <span className="whitespace-nowrap">trở lại</span>
+                </span>
+                <span className="block">hành trình của mình</span>
+              </h1>
+              <p className="text-white/85 text-sm font-['Lato',sans-serif] tracking-wide">
+                Đăng nhập dành cho nhân viên và quản trị viên.
+              </p>
+
+              <div className="mt-7 flex flex-wrap gap-2 font-['Lato',sans-serif]">
+                <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/20 backdrop-blur-sm">
+                  Theo dõi GPS thời gian thực
+                </span>
+                <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/20 backdrop-blur-sm">
+                  Quản trị hành trình
+                </span>
+                <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/20 backdrop-blur-sm">
+                  Báo cáo &amp; phản hồi
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex-1 flex items-center justify-center bg-[#faf8f3] px-8 py-12">
-          <form className="w-full max-w-[340px]" onSubmit={handleSubmit}>
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-semibold text-stone-800 mb-1">Sign in</h2>
-              <p className="text-sm text-stone-400 font-['Lato',sans-serif]">Portal quản trị JourneySense</p>
-            </div>
+        <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] px-8 py-12">
+          <div className="w-full max-w-[420px] rounded-2xl border border-stone-200/80 bg-white/80 p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)] ring-1 ring-stone-100/80 backdrop-blur-sm sm:p-8">
+            <form className="w-full" onSubmit={handleSubmit}>
+              <div className="text-center mb-8">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 ring-1 ring-amber-200/70">
+                  <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-semibold text-stone-800 mb-1">Đăng nhập</h2>
+                <p className="text-sm text-stone-500 font-['Lato',sans-serif]">Cổng quản trị Journey Sense</p>
+                <p className="mt-2 text-xs text-stone-400 font-['Lato',sans-serif]">Chỉ dành cho tài khoản nhân viên và quản trị viên.</p>
+              </div>
             {error && (
               <p className="mb-3 text-sm text-red-600 font-['Lato',sans-serif]" role="alert">
                 {error}
@@ -97,7 +122,7 @@ export default function LoginPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-stone-600 mb-1.5 font-['Lato',sans-serif]">
-                  Email address
+                  Email
                 </label>
                 <input
                   type="email"
@@ -105,13 +130,13 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoComplete="email"
-                  placeholder="Enter your email"
+                  placeholder="Nhập email của bạn"
                   className="w-full px-3.5 py-2.5 text-sm border border-stone-200 rounded-lg bg-white text-stone-700 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all duration-200 font-['Lato',sans-serif]"
                 />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-stone-600 mb-1.5 font-['Lato',sans-serif]">
-                  Password
+                  Mật khẩu
                 </label>
                 <div className="relative">
                   <input
@@ -120,7 +145,7 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="current-password"
-                    placeholder="Enter your password"
+                    placeholder="Nhập mật khẩu"
                     className="w-full px-3.5 py-2.5 text-sm border border-stone-200 rounded-lg bg-white text-stone-700 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all duration-200 font-['Lato',sans-serif] pr-10"
                   />
                   <button
@@ -144,12 +169,13 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-2.5 bg-amber-400 hover:bg-amber-500 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors duration-200 shadow-sm font-['Lato',sans-serif] mt-2"
+                className="w-full py-2.5 bg-amber-400 hover:bg-amber-500 disabled:opacity-60 text-white text-sm font-semibold rounded-lg transition-colors duration-200 shadow-sm font-['Lato',sans-serif] mt-2 focus:outline-none focus:ring-2 focus:ring-amber-400/50"
               >
-                {submitting ? 'Signing in…' : 'Sign in to Journey Sense'}
+                {submitting ? 'Đang đăng nhập…' : 'Đăng nhập vào Journey Sense'}
               </button>
             </div>
-          </form>
+            </form>
+          </div>
         </div>
       </div>
     </div>
