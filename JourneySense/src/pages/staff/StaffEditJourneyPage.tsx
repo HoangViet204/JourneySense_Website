@@ -19,6 +19,7 @@ import type {
   ExperiencePhotoInput,
   ExperiencePhotoResponse,
   MicroExperienceDetailResponse,
+  CloudinaryUploadSignatureResponse,
 } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { resolveCoordinatePayload } from '../../utils/coordinates'
@@ -256,6 +257,47 @@ export default function StaffEditJourneyPage() {
     }
   }
 
+  /**
+   * Upload ảnh trực tiếp lên Cloudinary bằng signed upload.
+   * - Lấy signature từ BE
+   * - POST FormData lên Cloudinary (chỉ gồm params đã ký: timestamp, public_id, overwrite + file + api_key + signature)
+   */
+  type CloudinaryUploadResponse = {
+    public_id?: string
+    url?: string
+    secure_url?: string
+  }
+
+  const uploadPhotoToCloudinary = async (file: File, isCover: boolean): Promise<{ publicId: string; photoUrl: string }> => {
+    if (!journeyId) throw new Error('journeyId not found')
+
+    // Bước 1: Lấy signature từ BE
+    const signatureRes = await api.post<CloudinaryUploadSignatureResponse>(
+      `/api/micro-experiences/${journeyId}/photos/cloudinary-signature`,
+      { isCover }
+    )
+    const sig = signatureRes.data
+
+    // Bước 2: Tạo FormData với CHỈ các params đã ký: timestamp, public_id, overwrite
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('api_key', sig.apiKey)
+    fd.append('timestamp', String(sig.timestamp))
+    fd.append('signature', sig.signature)
+    fd.append('public_id', sig.publicId)
+    fd.append('overwrite', String(sig.overwrite))
+
+    // Bước 3: POST lên Cloudinary
+    const uploadRes = await axios.post<CloudinaryUploadResponse>(sig.uploadUrl, fd)
+
+    const publicId = uploadRes.data.public_id || sig.publicId
+    const photoUrl = uploadRes.data.secure_url || uploadRes.data.url
+    if (!photoUrl) {
+      throw new Error('Cloudinary upload succeeded but no URL returned (missing secure_url/url).')
+    }
+    return { publicId, photoUrl }
+  }
+
   const onUploadPhotoFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -263,11 +305,18 @@ export default function StaffEditJourneyPage() {
     setBusy(true)
     const t = toast.loading('Đang tải ảnh lên…')
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      if (uploadCaption.trim()) fd.append('caption', uploadCaption.trim())
-      fd.append('isCover', uploadIsCover ? 'true' : 'false')
-      await api.post(`/api/micro-experiences/${journeyId}/photos`, fd)
+      // Upload trực tiếp lên Cloudinary bằng signature từ BE
+      const { photoUrl } = await uploadPhotoToCloudinary(file, uploadIsCover)
+
+      // Gắn ảnh vào experience theo schema `ExperiencePhotoInput` (URL).
+      // Nếu chỉ lưu public_id, UI sẽ render sai vì `resolveApiMediaUrl` sẽ hiểu là URL tương đối của API.
+      const one: ExperiencePhotoInput = {
+        photoUrl,
+        caption: uploadCaption.trim() || undefined,
+        isCover: uploadIsCover,
+      }
+      await api.put(`/api/micro-experiences/${journeyId}`, buildPutBody([one]))
+
       toast.success('Đã thêm ảnh', { id: t })
       setUploadCaption('')
       setUploadIsCover(false)

@@ -3,7 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
 import type { ExperiencePhotoResponse, MicroExperienceDetailResponse } from '../../types/portal'
-import { displayMicroExperienceTagVi, formatDate } from '../../utils/format'
+import { displayMicroExperienceTagVi, formatDate, formatOpeningHoursVi } from '../../utils/format'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { resolveApiMediaUrl } from '../../utils/mediaUrl'
 
@@ -269,9 +269,9 @@ export default function AdminPlaceDetailPage() {
                 <div className="rounded-2xl border border-stone-100 bg-white p-4 sm:col-span-2 ring-1 ring-stone-100/80">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">Giờ mở cửa</p>
                   {detail.openingHours ? (
-                    <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-xl bg-stone-50 p-3 font-mono text-xs text-stone-800">
-                      {detail.openingHours}
-                    </pre>
+                    <div className="mt-2 overflow-x-auto whitespace-pre-line break-words rounded-xl bg-stone-50 p-3 text-sm text-stone-800">
+                      {formatOpeningHoursVi(detail.openingHours)}
+                    </div>
                   ) : (
                     <p className="mt-1 text-sm text-stone-900">—</p>
                   )}

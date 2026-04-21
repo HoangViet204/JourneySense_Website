@@ -1,5 +1,12 @@
 import axios from 'axios'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+// Đáp ứng response giống admin
+interface StaffEmbeddingGenerateResponse {
+  success: number
+  failed: number
+  errors: string[]
+}
 import { Link, useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
@@ -35,7 +42,36 @@ export default function StaffDashboardPage() {
   const [loading, setLoading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
+  // Embedding state
+  const [embedLoading, setEmbedLoading] = useState(false)
+
   const { confirm, dialog } = useConfirmDialog()
+
+  // Hàm gọi embedding cho staff
+  const runEmbeddings = async () => {
+    if (embedLoading) return
+
+    const ok = await confirm({
+      title: 'Tạo embedding',
+      message: 'Tạo embedding cho toàn bộ địa điểm?\n\nThao tác này có thể mất vài phút.',
+      confirmText: 'Tạo',
+      cancelText: 'Hủy',
+    })
+    if (!ok) return
+
+    setEmbedLoading(true)
+    const t = toast.loading('Đang tạo embedding…')
+    try {
+      const { data } = await api.post<StaffEmbeddingGenerateResponse>('/api/staff/embeddings/generate')
+      toast.success(`Tạo embedding xong: ${data.success.toLocaleString('vi-VN')} thành công, ${data.failed.toLocaleString('vi-VN')} thất bại`, {
+        id: t,
+      })
+    } catch (e) {
+      toast.error(getApiErrorMessage(e), { id: t })
+    } finally {
+      setEmbedLoading(false)
+    }
+  }
 
   useEffect(() => {
     void axios.get<CategoryResponseDto[]>(`${base}/api/categories`).then(({ data }) => {
@@ -146,6 +182,18 @@ export default function StaffDashboardPage() {
       </header>
 
       <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-5">
+        {/* Section Embedding cho staff */}
+        <section className="rounded-2xl border border-stone-200/80 bg-white p-5 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)] mb-4">
+          <h2 className="mb-4 font-['Cormorant_Garamond',serif] text-lg font-semibold text-stone-900">Embedding</h2>
+          <button
+            type="button"
+            disabled={embedLoading}
+            onClick={() => void runEmbeddings()}
+            className="rounded-xl bg-[#c5a070] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f] disabled:opacity-60"
+          >
+            {embedLoading ? 'Đang chạy…' : 'Tạo embedding'}
+          </button>
+        </section>
         <div className="rounded-2xl bg-white border border-stone-100 shadow-sm p-4 sm:p-5 space-y-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <input

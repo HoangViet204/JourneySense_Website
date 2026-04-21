@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link, useOutletContext } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
@@ -8,11 +8,19 @@ import api from '../../api/axios'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { formatDate } from '../../utils/format'
 import { moderationStatusBadgeClass, moderationStatusVi } from '../../utils/staffFeedbackLabels'
+import { loadListUiState, patchListUiState } from '../../utils/listUiState'
 
 const PAGE_SIZE = 10
 
 export default function StaffFeedbackPage() {
   const { setSidebarCollapsed } = useOutletContext<StaffOutletContext>()
+  const location = useLocation()
+  const listKey = location.pathname
+  const scrollRef = useRef<HTMLElement | null>(null)
+  const didRestoreScroll = useRef(false)
+  const sawLoading = useRef(false)
+  const didInit = useRef(false)
+
   const [modFilter, setModFilter] = useState('')
 
   const [tripPage, setTripPage] = useState(1)
@@ -24,6 +32,26 @@ export default function StaffFeedbackPage() {
   const [wpTotal, setWpTotal] = useState(0)
 
   const [loading, setLoading] = useState(false)
+
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    if (loading) sawLoading.current = true
+  }, [loading])
+
+  useEffect(() => {
+    const saved = loadListUiState<{
+      modFilter?: string
+      tripPage?: number
+      wpPage?: number
+      scrollTop?: number
+    }>(listKey)
+
+    if (typeof saved?.modFilter === 'string') setModFilter(saved.modFilter)
+    if (typeof saved?.tripPage === 'number' && Number.isFinite(saved.tripPage) && saved.tripPage >= 1) setTripPage(saved.tripPage)
+    if (typeof saved?.wpPage === 'number' && Number.isFinite(saved.wpPage) && saved.wpPage >= 1) setWpPage(saved.wpPage)
+    setHydrated(true)
+  }, [listKey])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -49,13 +77,48 @@ export default function StaffFeedbackPage() {
   }, [tripPage, wpPage, modFilter])
 
   useEffect(() => {
+    if (!hydrated) return
     void load()
-  }, [load])
+  }, [hydrated, load])
 
   useEffect(() => {
+    if (!hydrated) return
+    if (!didInit.current) return
     setTripPage(1)
     setWpPage(1)
-  }, [modFilter])
+  }, [hydrated, modFilter])
+
+  useEffect(() => {
+    if (!hydrated) return
+    didInit.current = true
+  }, [hydrated])
+
+  useEffect(() => {
+    if (!hydrated) return
+    patchListUiState(listKey, { modFilter, tripPage, wpPage })
+  }, [hydrated, listKey, modFilter, tripPage, wpPage])
+
+  useEffect(() => {
+    return () => {
+      const el = scrollRef.current
+      patchListUiState(listKey, { modFilter, tripPage, wpPage, scrollTop: el?.scrollTop ?? 0 })
+    }
+  }, [listKey, modFilter, tripPage, wpPage])
+
+  useEffect(() => {
+    if (!hydrated) return
+    if (loading) return
+    if (!sawLoading.current) return
+    if (didRestoreScroll.current) return
+
+    const saved = loadListUiState<{ scrollTop?: number }>(listKey)
+    const el = scrollRef.current
+    if (el && typeof saved?.scrollTop === 'number' && Number.isFinite(saved.scrollTop)) {
+      el.scrollTo({ top: saved.scrollTop })
+    }
+
+    didRestoreScroll.current = true
+  }, [hydrated, listKey, loading])
 
   const tripPages = Math.max(1, Math.ceil(tripTotal / PAGE_SIZE))
   const wpPages = Math.max(1, Math.ceil(wpTotal / PAGE_SIZE))
@@ -93,7 +156,12 @@ export default function StaffFeedbackPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 space-y-8 max-w-[1400px] w-full mx-auto">
+      <main
+        ref={(n) => {
+          scrollRef.current = n
+        }}
+        className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 space-y-8 max-w-[1400px] w-full mx-auto"
+      >
         <div className="rounded-2xl bg-white/95 border border-stone-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 sm:p-5">
           <div className="flex-1 min-w-[200px]">
             <label htmlFor="mod-filter" className="sr-only">

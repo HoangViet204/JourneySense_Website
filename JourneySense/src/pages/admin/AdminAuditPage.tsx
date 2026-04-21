@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
 import type { AuditLogListItemDto, PortalPagedResult } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { normalizeAdminUserDetailPayload } from '../../utils/adminUserDetail'
+import { loadListUiState, patchListUiState } from '../../utils/listUiState'
 
 const PAGE_SIZE = 10
 
@@ -130,11 +131,29 @@ function displayActionTypeVi(actionType: string, entityType?: string | null) {
 }
 
 export default function AdminAuditPage() {
+  const location = useLocation()
+  const listKey = location.pathname
+  const scrollRef = useRef<HTMLElement | null>(null)
+  const didRestoreScroll = useRef(false)
+  const sawLoading = useRef(false)
+
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<PortalPagedResult<AuditLogListItemDto> | null>(null)
   const [actionTypeFilter, setActionTypeFilter] = useState<ActionFilter>('')
   const [actorBriefById, setActorBriefById] = useState<Record<string, { fullName: string | null; email: string | null }>>({})
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    if (loading) sawLoading.current = true
+  }, [loading])
+
+  useEffect(() => {
+    const saved = loadListUiState<{ page?: number; actionTypeFilter?: ActionFilter; scrollTop?: number }>(listKey)
+    if (typeof saved?.actionTypeFilter === 'string') setActionTypeFilter(saved.actionTypeFilter)
+    if (typeof saved?.page === 'number' && Number.isFinite(saved.page) && saved.page >= 1) setPage(saved.page)
+    setHydrated(true)
+  }, [listKey])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -155,8 +174,36 @@ export default function AdminAuditPage() {
   }, [page, actionTypeFilter])
 
   useEffect(() => {
+    if (!hydrated) return
     void load()
-  }, [load])
+  }, [hydrated, load])
+
+  useEffect(() => {
+    if (!hydrated) return
+    patchListUiState(listKey, { page, actionTypeFilter })
+  }, [actionTypeFilter, hydrated, listKey, page])
+
+  useEffect(() => {
+    return () => {
+      const el = scrollRef.current
+      patchListUiState(listKey, { page, actionTypeFilter, scrollTop: el?.scrollTop ?? 0 })
+    }
+  }, [actionTypeFilter, listKey, page])
+
+  useEffect(() => {
+    if (!hydrated) return
+    if (loading) return
+    if (!sawLoading.current) return
+    if (didRestoreScroll.current) return
+
+    const saved = loadListUiState<{ scrollTop?: number }>(listKey)
+    const el = scrollRef.current
+    if (el && typeof saved?.scrollTop === 'number' && Number.isFinite(saved.scrollTop)) {
+      el.scrollTo({ top: saved.scrollTop })
+    }
+
+    didRestoreScroll.current = true
+  }, [hydrated, listKey, loading])
 
   const items = result?.items ?? []
 
@@ -242,7 +289,12 @@ export default function AdminAuditPage() {
   }, [loading, actionTypeFilter])
 
   return (
-    <main className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] p-4 sm:p-6 lg:p-8">
+    <main
+      ref={(n) => {
+        scrollRef.current = n
+      }}
+      className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] p-4 sm:p-6 lg:p-8"
+    >
       <div className="mx-auto w-full max-w-6xl space-y-6">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>

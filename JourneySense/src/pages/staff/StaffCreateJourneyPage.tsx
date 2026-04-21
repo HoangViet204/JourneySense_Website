@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import goongjs from '@goongmaps/goong-js'
@@ -15,7 +15,7 @@ import PortalUserMenu from '../../components/portal/PortalUserMenu'
 import api from '../../api/axios'
 import { parseAmenityInput } from '../../constants/microExperienceEnums'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
-import type { CategoryResponseDto, ExperiencePhotoInput } from '../../types/portal'
+import type { CategoryResponseDto, CloudinaryUploadSignatureResponse, ExperiencePhotoInput } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { resolveCoordinatePayload } from '../../utils/coordinates'
 
@@ -26,6 +26,14 @@ function buildTagsPayload(enumTags: string[], tagsExtraLine: string): string[] |
 }
 
 type PhotoDraftRow = ExperiencePhotoInput & { key: string }
+
+type PendingFilePhotoDraft = {
+  key: string
+  file: File
+  previewUrl: string
+  caption?: string
+  isCover: boolean
+}
 
 type ProvinceRow = { code: number; name: string }
 type DistrictRow = { code: number; name: string }
@@ -233,6 +241,13 @@ export default function StaffCreateJourneyPage() {
   const [crowdLevel, setCrowdLevel] = useState('normal')
   /** Ảnh kèm POST — `ExperiencePhotoInput` (URL). */
   const [photoDrafts, setPhotoDrafts] = useState<PhotoDraftRow[]>([])
+
+  /** Ảnh chọn từ máy — sẽ upload sau khi tạo (cần `id` để xin signature). */
+  const [pendingFilePhotos, setPendingFilePhotos] = useState<PendingFilePhotoDraft[]>([])
+  const [uploadCaption, setUploadCaption] = useState('')
+  const [uploadIsCover, setUploadIsCover] = useState(false)
+  const uploadFileInputRef = useRef<HTMLInputElement>(null)
+  const pendingFilePhotosRef = useRef<PendingFilePhotoDraft[]>([])
 
   const [busy, setBusy] = useState(false)
 
@@ -532,6 +547,72 @@ export default function StaffCreateJourneyPage() {
     }
   }, [])
 
+  type CloudinaryUploadResponse = {
+    public_id?: string
+    url?: string
+    secure_url?: string
+  }
+
+  const uploadPhotoToCloudinary = async (experienceId: string, file: File, isCover: boolean): Promise<string> => {
+    const signatureRes = await api.post<CloudinaryUploadSignatureResponse>(
+      `/api/micro-experiences/${experienceId}/photos/cloudinary-signature`,
+      { isCover },
+    )
+    const sig = signatureRes.data
+
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('api_key', sig.apiKey)
+    fd.append('timestamp', String(sig.timestamp))
+    fd.append('signature', sig.signature)
+    fd.append('public_id', sig.publicId)
+    fd.append('overwrite', String(sig.overwrite))
+
+    const uploadRes = await axios.post<CloudinaryUploadResponse>(sig.uploadUrl, fd)
+    const photoUrl = uploadRes.data.secure_url || uploadRes.data.url
+    if (!photoUrl) throw new Error('Cloudinary upload succeeded but no URL returned (missing secure_url/url).')
+    return photoUrl
+  }
+
+  const onPickUploadFile = () => {
+    uploadFileInputRef.current?.click()
+  }
+
+  const onUploadPhotoFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const previewUrl = URL.createObjectURL(file)
+    setPendingFilePhotos((rows) => [
+      ...rows,
+      {
+        key: crypto.randomUUID(),
+        file,
+        previewUrl,
+        caption: uploadCaption.trim() || undefined,
+        isCover: uploadIsCover,
+      },
+    ])
+    setUploadCaption('')
+    setUploadIsCover(false)
+  }
+
+  useEffect(() => {
+    pendingFilePhotosRef.current = pendingFilePhotos
+  }, [pendingFilePhotos])
+
+  useEffect(() => {
+    return () => {
+      for (const row of pendingFilePhotosRef.current) {
+        try {
+          URL.revokeObjectURL(row.previewUrl)
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }, [])
+
   const submit = async () => {
     if (!categoryId || !name.trim()) {
       toast.warning('Vui lòng nhập tên và chọn danh mục.')
@@ -562,7 +643,7 @@ export default function StaffCreateJourneyPage() {
 
     const addressPayload = [address.trim(), selectedWardName, selectedDistrictName].filter(Boolean).join(', ') || undefined
     try {
-      const { data, status, headers } = await api.post('/api/micro-experiences', {
+      const createBody = {
         name: name.trim(),
         categoryId,
         address: addressPayload,
@@ -582,22 +663,50 @@ export default function StaffCreateJourneyPage() {
         priceRange: priceRange.trim() || undefined,
         crowdLevel: crowdLevel.trim() || 'normal',
         ...(photosPayload.length ? { photos: photosPayload } : {}),
-      })
-      toast.dismiss(t)
-      toast.success('Tạo trải nghiệm thành công')
-      const id = (data as { id?: string }).id
-      if (status === 201 && id) {
-        navigate(`/staff/journeys/${id}/edit`, { replace: true })
+      }
+
+      const { data, status, headers } = await api.post('/api/micro-experiences', createBody)
+
+      const idFromBody = (data as { id?: string }).id
+      const idFromLocation = (() => {
+        const loc = headers.location
+        if (!loc) return undefined
+        const m = /([0-9a-f-]{36})$/i.exec(loc)
+        return m?.[1]
+      })()
+      const createdId = (status === 201 ? idFromBody : undefined) || idFromLocation
+
+      if (!createdId) {
+        toast.success('Tạo trải nghiệm thành công', { id: t })
         return
       }
-      const loc = headers.location
-      if (loc) {
-        const m = /([0-9a-f-]{36})$/i.exec(loc)
-        if (m) navigate(`/staff/journeys/${m[1]}/edit`, { replace: true })
+
+      if (pendingFilePhotos.length) {
+        toast.loading('Đang tải ảnh lên…', { id: t })
+        const uploaded: ExperiencePhotoInput[] = []
+        for (const row of pendingFilePhotos) {
+          const photoUrl = await uploadPhotoToCloudinary(createdId, row.file, row.isCover)
+          uploaded.push({
+            photoUrl,
+            caption: row.caption,
+            isCover: row.isCover,
+          })
+        }
+        if (uploaded.length) {
+          await api.put(`/api/micro-experiences/${createdId}`, {
+            ...createBody,
+            // `ExperiencePhotoInput` trong PUT là append (không gửi lại photosPayload để tránh duplicate)
+            photos: uploaded,
+            // Create không cho chọn status, nên giữ active cho lần PUT an toàn hơn.
+            status: 'active',
+          })
+        }
       }
+
+      toast.success('Tạo trải nghiệm thành công', { id: t })
+      navigate(`/staff/journeys/${createdId}/edit`, { replace: true })
     } catch (e) {
-      toast.dismiss(t)
-      toast.error(getApiErrorMessage(e))
+      toast.error(getApiErrorMessage(e), { id: t })
     } finally {
       setBusy(false)
     }
@@ -907,6 +1016,107 @@ export default function StaffCreateJourneyPage() {
               crowdLevel={crowdLevel}
               onCrowdLevelChange={setCrowdLevel}
             />
+          </section>
+
+          <section className={`${sectionCard} space-y-5`}>
+            <ExperienceFormSectionHeader
+              icon={
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              }
+              title="Ảnh từ máy (tuỳ chọn)"
+            />
+
+            <div className="space-y-3 rounded-2xl border border-stone-200/80 bg-stone-50/40 p-4 sm:p-5">
+              <input
+                ref={uploadFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onUploadPhotoFile}
+              />
+
+              <p className="text-xs font-semibold text-stone-600">
+                Chọn ảnh từ máy. Ảnh sẽ được upload sau khi bấm <span className="text-stone-900">Tạo trải nghiệm</span>.
+              </p>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-5">
+                <div className="min-w-0 md:col-span-2">
+                  <label className={labelCls}>Chú thích</label>
+                  <input
+                    value={uploadCaption}
+                    onChange={(e) => setUploadCaption(e.target.value)}
+                    className={inputCls}
+                    placeholder="Tuỳ chọn"
+                  />
+                </div>
+                <div className="flex items-end justify-between gap-3">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-stone-600 cursor-pointer">
+                    <input type="checkbox" checked={uploadIsCover} onChange={(e) => setUploadIsCover(e.target.checked)} />
+                    Ảnh bìa
+                  </label>
+                  <button
+                    type="button"
+                    onClick={onPickUploadFile}
+                    className="rounded-xl border border-stone-300 bg-white px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50"
+                  >
+                    Chọn ảnh…
+                  </button>
+                </div>
+              </div>
+
+              {pendingFilePhotos.length > 0 && (
+                <div className="space-y-2 border-t border-stone-200/70 pt-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-stone-500">Ảnh đã chọn</p>
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
+                    {pendingFilePhotos.map((row) => (
+                      <div key={row.key} className="relative group rounded-xl overflow-hidden border border-stone-200 bg-stone-100">
+                        {row.isCover && (
+                          <span className="absolute top-1.5 left-1.5 z-10 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500 text-white">
+                            Bìa
+                          </span>
+                        )}
+                        <img
+                          src={row.previewUrl}
+                          alt=""
+                          className="w-full aspect-[4/3] object-cover"
+                          loading="lazy"
+                        />
+                        <div className="p-2 bg-white border-t border-stone-100 flex items-start justify-between gap-2">
+                          <p className="text-[10px] text-stone-600 line-clamp-2">{row.caption || row.file.name}</p>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              setPendingFilePhotos((rows) => {
+                                const found = rows.find((r) => r.key === row.key)
+                                if (found) {
+                                  try {
+                                    URL.revokeObjectURL(found.previewUrl)
+                                  } catch {
+                                    // ignore
+                                  }
+                                }
+                                return rows.filter((r) => r.key !== row.key)
+                              })
+                            }
+                            className="shrink-0 text-[10px] font-bold text-red-600 hover:underline"
+                          >
+                            Xoá
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </section>
 
           <section className={`${sectionCard} space-y-5`}>

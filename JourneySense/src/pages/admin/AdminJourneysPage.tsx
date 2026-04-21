@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
 import type { AdminJourneyListItemDto, PortalPagedResult } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { displayJourneyStatus, formatDate } from '../../utils/format'
+import { loadListUiState, patchListUiState } from '../../utils/listUiState'
 
 const PAGE_SIZE = 10
 
@@ -35,10 +36,29 @@ function statusPillClass(status?: string | null): string {
 }
 
 export default function AdminJourneysPage() {
+  const location = useLocation()
+  const listKey = location.pathname
+  const scrollRef = useRef<HTMLElement | null>(null)
+  const didRestoreScroll = useRef(false)
+  const sawLoading = useRef(false)
+  const didInit = useRef(false)
+
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<PortalPagedResult<AdminJourneyListItemDto> | null>(null)
   const [status, setStatus] = useState<JourneyStatusFilter>('')
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    if (loading) sawLoading.current = true
+  }, [loading])
+
+  useEffect(() => {
+    const saved = loadListUiState<{ page?: number; status?: JourneyStatusFilter; scrollTop?: number }>(listKey)
+    if (typeof saved?.status === 'string') setStatus(saved.status)
+    if (typeof saved?.page === 'number' && Number.isFinite(saved.page) && saved.page >= 1) setPage(saved.page)
+    setHydrated(true)
+  }, [listKey])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -56,23 +76,65 @@ export default function AdminJourneysPage() {
   }, [page, status])
 
   useEffect(() => {
+    if (!hydrated) return
     void load()
-  }, [load])
+  }, [hydrated, load])
 
   useEffect(() => {
+    if (!hydrated) return
+    if (!didInit.current) return
     setPage(1)
-  }, [status])
+  }, [hydrated, status])
+
+  useEffect(() => {
+    if (!hydrated) return
+    didInit.current = true
+  }, [hydrated])
 
   const items = data?.items ?? []
   const totalCount = data?.totalCount ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
   useEffect(() => {
+    if (!hydrated) return
+    if (!data) return
     if (page > totalPages) setPage(totalPages)
-  }, [page, totalPages])
+  }, [data, hydrated, page, totalPages])
+
+  useEffect(() => {
+    if (!hydrated) return
+    patchListUiState(listKey, { page, status })
+  }, [hydrated, listKey, page, status])
+
+  useEffect(() => {
+    return () => {
+      const el = scrollRef.current
+      patchListUiState(listKey, { page, status, scrollTop: el?.scrollTop ?? 0 })
+    }
+  }, [listKey, page, status])
+
+  useEffect(() => {
+    if (!hydrated) return
+    if (loading) return
+    if (!sawLoading.current) return
+    if (didRestoreScroll.current) return
+
+    const saved = loadListUiState<{ scrollTop?: number }>(listKey)
+    const el = scrollRef.current
+    if (el && typeof saved?.scrollTop === 'number' && Number.isFinite(saved.scrollTop)) {
+      el.scrollTo({ top: saved.scrollTop })
+    }
+
+    didRestoreScroll.current = true
+  }, [hydrated, listKey, loading])
 
   return (
-    <main className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] p-4 sm:p-6 lg:p-8">
+    <main
+      ref={(n) => {
+        scrollRef.current = n
+      }}
+      className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] p-4 sm:p-6 lg:p-8"
+    >
       <div className="mx-auto w-full max-w-6xl space-y-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
 import { useConfirmDialog } from '../../components/ConfirmDialog'
@@ -7,6 +7,7 @@ import { fetchAdminUsers } from '../../actions/adminUserActions'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { displayRole, displayStatus, formatDate } from '../../utils/format'
+import { loadListUiState, patchListUiState } from '../../utils/listUiState'
 
 function roleBadgeClass(role: string) {
   const r = role?.toLowerCase()
@@ -31,6 +32,12 @@ const card =
   'rounded-2xl border border-stone-200/80 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.04)]'
 
 export default function AccountManagementPage() {
+  const location = useLocation()
+  const listKey = location.pathname
+  const scrollRef = useRef<HTMLElement | null>(null)
+  const didRestoreScroll = useRef(false)
+  const sawLoading = useRef(false)
+
   const dispatch = useAppDispatch()
   const { items, loading, totalCount } = useAppSelector((s) => s.adminUsers)
 
@@ -40,6 +47,33 @@ export default function AccountManagementPage() {
   const [listPage, setListPage] = useState(1)
   const [roleFilter, setRoleFilter] = useState<'all' | 'traveler' | 'staff' | 'admin'>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all')
+
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    if (loading) sawLoading.current = true
+  }, [loading])
+
+  useEffect(() => {
+    const saved = loadListUiState<{
+      activeTab?: 'users' | 'staff'
+      searchInput?: string
+      appliedSearch?: string
+      listPage?: number
+      roleFilter?: 'all' | 'traveler' | 'staff' | 'admin'
+      statusFilter?: 'all' | 'active' | 'suspended'
+      scrollTop?: number
+    }>(listKey)
+
+    if (saved?.activeTab === 'users' || saved?.activeTab === 'staff') setActiveTab(saved.activeTab)
+    if (typeof saved?.searchInput === 'string') setSearchInput(saved.searchInput)
+    if (typeof saved?.appliedSearch === 'string') setAppliedSearch(saved.appliedSearch)
+    if (typeof saved?.roleFilter === 'string') setRoleFilter(saved.roleFilter)
+    if (typeof saved?.statusFilter === 'string') setStatusFilter(saved.statusFilter)
+    if (typeof saved?.listPage === 'number' && Number.isFinite(saved.listPage) && saved.listPage >= 1) setListPage(saved.listPage)
+
+    setHydrated(true)
+  }, [listKey])
 
   const [staffEmail, setStaffEmail] = useState('')
   const [staffPassword, setStaffPassword] = useState('')
@@ -51,6 +85,7 @@ export default function AccountManagementPage() {
   const apiStatus = statusFilter === 'all' ? undefined : statusFilter
 
   useEffect(() => {
+    if (!hydrated) return
     if (activeTab !== 'users') return
     void dispatch(
       fetchAdminUsers({
@@ -61,7 +96,34 @@ export default function AccountManagementPage() {
         status: apiStatus,
       }),
     )
-  }, [dispatch, activeTab, listPage, appliedSearch, apiRole, apiStatus])
+  }, [dispatch, activeTab, hydrated, listPage, appliedSearch, apiRole, apiStatus])
+
+  useEffect(() => {
+    if (!hydrated) return
+    patchListUiState(listKey, { activeTab, searchInput, appliedSearch, listPage, roleFilter, statusFilter })
+  }, [activeTab, appliedSearch, hydrated, listKey, listPage, roleFilter, searchInput, statusFilter])
+
+  useEffect(() => {
+    return () => {
+      const el = scrollRef.current
+      patchListUiState(listKey, { activeTab, searchInput, appliedSearch, listPage, roleFilter, statusFilter, scrollTop: el?.scrollTop ?? 0 })
+    }
+  }, [activeTab, appliedSearch, listKey, listPage, roleFilter, searchInput, statusFilter])
+
+  useEffect(() => {
+    if (!hydrated) return
+    if (loading) return
+    if (!sawLoading.current) return
+    if (didRestoreScroll.current) return
+
+    const saved = loadListUiState<{ scrollTop?: number }>(listKey)
+    const el = scrollRef.current
+    if (el && typeof saved?.scrollTop === 'number' && Number.isFinite(saved.scrollTop)) {
+      el.scrollTo({ top: saved.scrollTop })
+    }
+
+    didRestoreScroll.current = true
+  }, [hydrated, listKey, loading])
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
@@ -93,7 +155,12 @@ export default function AccountManagementPage() {
 
   return (
     <>
-      <main className={shell}>
+      <main
+        ref={(n) => {
+          scrollRef.current = n
+        }}
+        className={shell}
+      >
         <div className="mx-auto w-full max-w-6xl space-y-8">
         <header>
           <h1 className="font-['Cormorant_Garamond',serif] text-2xl font-semibold text-stone-900 sm:text-3xl">

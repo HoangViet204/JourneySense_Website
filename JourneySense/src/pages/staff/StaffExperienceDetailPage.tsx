@@ -5,7 +5,7 @@ import api from '../../api/axios'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
 import type { ExperiencePhotoResponse, MicroExperienceDetailResponse } from '../../types/portal'
-import { displayMicroExperienceTagVi, formatDate } from '../../utils/format'
+import { displayMicroExperienceTagVi, formatDate, formatOpeningHoursVi } from '../../utils/format'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { resolveApiMediaUrl } from '../../utils/mediaUrl'
 
@@ -225,9 +225,9 @@ export default function StaffExperienceDetailPage() {
                   </DlBlock>
                   <DlBlock label="Giờ mở cửa">
                     {detail.openingHours ? (
-                      <pre className="text-xs font-mono bg-stone-50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-words">
-                        {detail.openingHours}
-                      </pre>
+                      <div className="text-sm text-stone-800 bg-stone-50 rounded-lg p-3 overflow-x-auto whitespace-pre-line break-words">
+                        {formatOpeningHoursVi(detail.openingHours)}
+                      </div>
                     ) : (
                       '—'
                     )}

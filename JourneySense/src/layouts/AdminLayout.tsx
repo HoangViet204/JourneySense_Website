@@ -7,6 +7,17 @@ import { useAppSelector } from '../store/hooks'
 import type { PortalProfileResponse } from '../types/portal'
 
 const nav: { to: string; label: string; icon: ReactNode }[] = [
+    {
+      to: '/admin/transactions',
+      label: 'Lịch sử giao dịch',
+      icon: (
+        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17 9V7a5 5 0 00-10 0v2" />
+          <rect width="20" height="14" x="2" y="9" rx="2" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M16 13h.01M8 13h.01" />
+        </svg>
+      ),
+    },
   {
     to: '/admin/dashboard',
     label: 'Bảng điều khiển',

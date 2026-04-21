@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
 import { useConfirmDialog } from '../../components/ConfirmDialog'
@@ -10,6 +10,7 @@ import type {
   MicroExperienceListItemResponse,
 } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
+import { loadListUiState, patchListUiState } from '../../utils/listUiState'
 
 const PAGE_SIZE = 10
 
@@ -28,6 +29,13 @@ const initialApplied = {
 
 export default function AdminPlacesPage() {
   const base = import.meta.env.VITE_API_BASE_URL ?? ''
+  const location = useLocation()
+  const listKey = location.pathname
+  const scrollRef = useRef<HTMLElement | null>(null)
+  const didRestoreScroll = useRef(false)
+  const sawLoading = useRef(false)
+  const didInit = useRef(false)
+
   const [allItems, setAllItems] = useState<MicroExperienceListItemResponse[]>([])
   const [categories, setCategories] = useState<CategoryResponseDto[]>([])
   const [keyword, setKeyword] = useState('')
@@ -37,6 +45,11 @@ export default function AdminPlacesPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [embedLoading, setEmbedLoading] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    if (loading) sawLoading.current = true
+  }, [loading])
 
   const { confirm, dialog } = useConfirmDialog()
 
@@ -66,19 +79,84 @@ export default function AdminPlacesPage() {
   }, [applied])
 
   useEffect(() => {
+    if (!hydrated) return
     void load()
-  }, [load])
+  }, [hydrated, load])
 
   useEffect(() => {
+    if (!hydrated) return
+    if (!didInit.current) return
     setPage(1)
-  }, [applied])
+  }, [applied, hydrated])
+
+  useEffect(() => {
+    if (!hydrated) return
+    didInit.current = true
+  }, [hydrated])
+
+  useEffect(() => {
+    const saved = loadListUiState<{
+      page?: number
+      keyword?: string
+      filterCategoryId?: string
+      filterStatus?: string
+      applied?: typeof initialApplied
+      scrollTop?: number
+    }>(listKey)
+
+    if (typeof saved?.keyword === 'string') setKeyword(saved.keyword)
+    if (typeof saved?.filterCategoryId === 'string') setFilterCategoryId(saved.filterCategoryId)
+    if (typeof saved?.filterStatus === 'string') setFilterStatus(saved.filterStatus)
+
+    if (saved?.applied && typeof saved.applied === 'object') {
+      const a = saved.applied as Partial<typeof initialApplied>
+      setApplied({
+        keyword: typeof a.keyword === 'string' ? a.keyword : '',
+        categoryId: typeof a.categoryId === 'string' ? a.categoryId : '',
+        status: typeof a.status === 'string' ? a.status : '',
+      })
+    }
+
+    if (typeof saved?.page === 'number' && Number.isFinite(saved.page) && saved.page >= 1) setPage(saved.page)
+    setHydrated(true)
+  }, [listKey])
+
+  useEffect(() => {
+    if (!hydrated) return
+    patchListUiState(listKey, { page, keyword, filterCategoryId, filterStatus, applied })
+  }, [applied, filterCategoryId, filterStatus, hydrated, keyword, listKey, page])
+
+  useEffect(() => {
+    return () => {
+      const el = scrollRef.current
+      patchListUiState(listKey, { page, keyword, filterCategoryId, filterStatus, applied, scrollTop: el?.scrollTop ?? 0 })
+    }
+  }, [applied, filterCategoryId, filterStatus, keyword, listKey, page])
+
+  useEffect(() => {
+    if (!hydrated) return
+    if (loading) return
+    if (!sawLoading.current) return
+    if (didRestoreScroll.current) return
+
+    const saved = loadListUiState<{ scrollTop?: number }>(listKey)
+    const el = scrollRef.current
+    if (el && typeof saved?.scrollTop === 'number' && Number.isFinite(saved.scrollTop)) {
+      el.scrollTo({ top: saved.scrollTop })
+    }
+
+    didRestoreScroll.current = true
+  }, [hydrated, listKey, loading])
 
   const totalCount = allItems.length
   const totalPagesComputed = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
   useEffect(() => {
+    if (!hydrated) return
+    if (loading) return
+    if (!sawLoading.current) return
     if (page > totalPagesComputed) setPage(totalPagesComputed)
-  }, [page, totalPagesComputed])
+  }, [hydrated, loading, page, totalPagesComputed])
 
   const totalPages = totalPagesComputed
   const displayedRows = useMemo(() => {
@@ -122,7 +200,12 @@ export default function AdminPlacesPage() {
 
   return (
     <>
-      <main className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] p-4 sm:p-6 lg:p-8">
+      <main
+        ref={(n) => {
+          scrollRef.current = n
+        }}
+        className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] p-4 sm:p-6 lg:p-8"
+      >
         <div className="mx-auto w-full max-w-6xl space-y-8">
         <h1 className="font-['Cormorant_Garamond',serif] text-2xl font-semibold text-stone-900 sm:text-3xl">Địa điểm</h1>
 

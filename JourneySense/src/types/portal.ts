@@ -139,28 +139,6 @@ export interface AdminAnalyticsSummaryResponse {
   experiencesActive: number
   journeysTotal: number
   feedbacksPendingModeration: number
-
-  /** Tổng doanh thu gross (sum amount completed). */
-  revenueTotalVnd?: number | null
-  /** Doanh thu gross 30 ngày gần nhất. */
-  revenue30dVnd?: number | null
-  /** Số giao dịch completed. */
-  completedTransactions?: number | null
-  /** Số lượng gói mua theo `packages.type`. */
-  packagesByType?: Array<{ type: string; count: number }> | null
-}
-
-// ——— TopVisitedPlacesResponse.cs ———
-
-export interface TopVisitedPlacesResponse {
-  rangeDays?: number | null
-  sampleJourneys?: number | null
-  items: Array<{
-    experienceId: string
-    name: string
-    city?: string | null
-    visitedCount: number
-  }>
 }
 
 // ——— AdminJourneyDtos.cs ———
