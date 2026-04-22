@@ -44,6 +44,7 @@ export interface PortalPagedResult<T> {
 /** Item lịch sử giao dịch của user (PayOS hoặc đổi bằng điểm). */
 export interface TransactionHistoryItemDto {
   id: string
+  userId?: string | null
   /** "payos" | "points" */
   source: string
   occurredAt: string
@@ -130,6 +131,11 @@ export interface UpdatePortalUserStatusRequest {
 
 // ——— AdminAnalyticsSummaryResponse.cs ———
 
+export interface AdminPackageByTypeItem {
+  type: string
+  count?: number | null
+}
+
 export interface AdminAnalyticsSummaryResponse {
   usersTotal: number
   usersActive: number
@@ -139,6 +145,10 @@ export interface AdminAnalyticsSummaryResponse {
   experiencesActive: number
   journeysTotal: number
   feedbacksPendingModeration: number
+  revenueTotalVnd?: number | null
+  revenue30dVnd?: number | null
+  completedTransactions?: number | null
+  packagesByType?: AdminPackageByTypeItem[] | null
 }
 
 // ——— AdminJourneyDtos.cs ———
@@ -457,4 +467,32 @@ export interface MicroExperienceListQuery {
   status?: string
   mood?: string
   timeOfDay?: string
+}
+
+// ——— TopVisitedPlacesResponse ———
+
+export interface TopVisitedPlaceItemResponse {
+  experienceId: string
+  name?: string | null
+  city?: string | null
+  visitedCount: number
+}
+
+export interface TopVisitedPlacesResponse {
+  items: TopVisitedPlaceItemResponse[]
+  rangeDays: number
+  sampleJourneys: number
+}
+
+// ——— CloudinaryUploadSignatureResponse ———
+
+export interface CloudinaryUploadSignatureResponse {
+  signature: string
+  timestamp: number
+  cloudName: string
+  apiKey: string
+  publicId: string
+  overwrite: boolean
+  uploadUrl: string
+  folder?: string | null
 }

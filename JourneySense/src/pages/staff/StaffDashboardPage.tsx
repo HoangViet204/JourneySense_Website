@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 // Đáp ứng response giống admin
 interface StaffEmbeddingGenerateResponse {

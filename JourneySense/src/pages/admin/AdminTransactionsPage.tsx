@@ -1,8 +1,5 @@
-import React from 'react';
-
-
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '../../api/axios';
 import type { PortalPagedResult, TransactionHistoryItemDto } from '../../types/portal';
@@ -62,8 +59,6 @@ export default function AdminTransactionsPage() {
   const [source, setSource] = useState<SourceFilter>('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PortalPagedResult<TransactionHistoryItemDto> | null>(null);
-  const navigate = useNavigate();
-
   const load = useCallback(async () => {
     setLoading(true);
     try {
