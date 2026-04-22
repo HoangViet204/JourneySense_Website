@@ -127,9 +127,14 @@ export default function AccountManagementPage() {
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
+
   const createStaff = async () => {
     const email = staffEmail.trim()
     if (!email) return
+    if (!email.endsWith('@journeysense.com')) {
+      toast.error('Email nhân viên phải có định dạng @journeysense.com')
+      return
+    }
 
     const ok = await confirm({
       title: 'Tạo tài khoản nhân viên',
