@@ -1,12 +1,5 @@
 import axios from 'axios'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-
-// Đáp ứng response giống admin
-interface StaffEmbeddingGenerateResponse {
-  success: number
-  failed: number
-  errors: string[]
-}
 import { Link, useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
@@ -16,6 +9,29 @@ import { TIME_OF_DAY_OPTIONS } from '../../constants/microExperienceEnums'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
 import type { CategoryResponseDto, MicroExperienceListItemResponse } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
+
+// ── Dashboard stats ──────────────────────────────────────────────────────────
+interface StaffDashboardStats {
+  waypointFeedbackPending: number
+  journeyFeedbackPending: number
+  experiencesActive: number
+  experiencesTotal: number
+  waypointFeedbackTotal: number
+  journeyFeedbackTotal: number
+  topVisitedPlaces: Array<{
+    experienceId: string
+    name: string
+    city: string
+    visitedCount: number
+  }>
+}
+
+// Đáp ứng response giống admin
+interface StaffEmbeddingGenerateResponse {
+  success: number
+  failed: number
+  errors: string[]
+}
 
 const PAGE_SIZE = 10
 
@@ -41,6 +57,26 @@ export default function StaffDashboardPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // Dashboard stats
+  const [stats, setStats] = useState<StaffDashboardStats | null>(null)
+  const [statsLoading, setStatsLoading] = useState(false)
+
+  const loadStats = useCallback(async () => {
+    setStatsLoading(true)
+    try {
+      const { data } = await api.get<StaffDashboardStats>('/api/staff/dashboard')
+      setStats(data)
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, 'Không tải được thống kê dashboard'))
+    } finally {
+      setStatsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadStats()
+  }, [loadStats])
 
   // Embedding state
   const [embedLoading, setEmbedLoading] = useState(false)
@@ -182,6 +218,121 @@ export default function StaffDashboardPage() {
       </header>
 
       <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-5">
+        {/* ── Dashboard stats ─────────────────────────────────────────────── */}
+        <section className="space-y-4">
+          {/* Hàng 1 — 3 stat cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Địa điểm active */}
+            <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)] flex flex-col gap-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">Địa điểm active</p>
+              {statsLoading ? (
+                <p className="text-2xl font-bold text-stone-300 animate-pulse">—</p>
+              ) : (
+                <p className="text-2xl font-bold text-stone-900 font-['Cormorant_Garamond',serif]">
+                  {stats ? `${stats.experiencesActive} / ${stats.experiencesTotal}` : '—'}
+                </p>
+              )}
+              <p className="text-xs text-stone-400">Đang hoạt động / Tổng số</p>
+            </div>
+
+            {/* Feedback waypoint chờ duyệt */}
+            <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)] flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">Feedback điểm dừng chờ duyệt</p>
+                {stats && stats.waypointFeedbackPending > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5">
+                    {stats.waypointFeedbackPending}
+                  </span>
+                )}
+              </div>
+              {statsLoading ? (
+                <p className="text-2xl font-bold text-stone-300 animate-pulse">—</p>
+              ) : (
+                <p className={`text-2xl font-bold font-['Cormorant_Garamond',serif] ${stats && stats.waypointFeedbackPending > 0 ? 'text-red-600' : 'text-stone-900'}`}>
+                  {stats?.waypointFeedbackPending ?? '—'}
+                </p>
+              )}
+              <p className="text-xs text-stone-400">Tổng: {stats?.waypointFeedbackTotal ?? '—'}</p>
+              <Link
+                to="/staff/feedback"
+                className="mt-2 self-start rounded-lg border border-[#c5a070] px-3 py-1.5 text-xs font-semibold text-[#9a7b4f] hover:bg-[#fdf6ec] transition-colors"
+              >
+                Xem danh sách →
+              </Link>
+            </div>
+
+            {/* Feedback chuyến chờ duyệt */}
+            <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)] flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">Feedback chuyến chờ duyệt</p>
+                {stats && stats.journeyFeedbackPending > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5">
+                    {stats.journeyFeedbackPending}
+                  </span>
+                )}
+              </div>
+              {statsLoading ? (
+                <p className="text-2xl font-bold text-stone-300 animate-pulse">—</p>
+              ) : (
+                <p className={`text-2xl font-bold font-['Cormorant_Garamond',serif] ${stats && stats.journeyFeedbackPending > 0 ? 'text-red-600' : 'text-stone-900'}`}>
+                  {stats?.journeyFeedbackPending ?? '—'}
+                </p>
+              )}
+              <p className="text-xs text-stone-400">Tổng: {stats?.journeyFeedbackTotal ?? '—'}</p>
+              <Link
+                to="/staff/feedback"
+                className="mt-2 self-start rounded-lg border border-[#c5a070] px-3 py-1.5 text-xs font-semibold text-[#9a7b4f] hover:bg-[#fdf6ec] transition-colors"
+              >
+                Xem danh sách →
+              </Link>
+            </div>
+          </div>
+
+          {/* Hàng 2 — Top địa điểm được ghé nhiều nhất */}
+          <div className="rounded-2xl border border-stone-200/80 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.04)] overflow-hidden">
+            <div className="px-5 py-4 border-b border-stone-100">
+              <h2 className="font-['Cormorant_Garamond',serif] text-base font-semibold text-stone-900">
+                Top địa điểm được ghé nhiều nhất
+                <span className="ml-2 text-xs font-normal text-stone-400">(30 ngày gần nhất)</span>
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[400px]">
+                <thead>
+                  <tr className="bg-[#f5f0e8] text-left text-[11px] uppercase tracking-wide text-stone-600 font-semibold">
+                    <th className="px-5 py-3">#</th>
+                    <th className="px-5 py-3">Tên địa điểm</th>
+                    <th className="px-5 py-3">Thành phố</th>
+                    <th className="px-5 py-3 text-right">Lượt ghé</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {statsLoading && (
+                    <tr>
+                      <td colSpan={4} className="px-5 py-6 text-center text-stone-400 text-sm">Đang tải…</td>
+                    </tr>
+                  )}
+                  {!statsLoading && (!stats?.topVisitedPlaces?.length) && (
+                    <tr>
+                      <td colSpan={4} className="px-5 py-6 text-center text-stone-400 text-sm">Chưa có dữ liệu.</td>
+                    </tr>
+                  )}
+                  {!statsLoading && stats?.topVisitedPlaces?.slice(0, 5).map((place, i) => (
+                    <tr key={place.experienceId} className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/40'}>
+                      <td className="px-5 py-3 text-stone-400 font-semibold tabular-nums">{i + 1}</td>
+                      <td className="px-5 py-3 font-medium text-stone-900">{place.name}</td>
+                      <td className="px-5 py-3 text-stone-600">{place.city}</td>
+                      <td className="px-5 py-3 text-right font-semibold text-[#9a7b4f] tabular-nums">
+                        {place.visitedCount.toLocaleString('vi-VN')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
         {/* Section Embedding cho staff */}
         <section className="rounded-2xl border border-stone-200/80 bg-white p-5 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)] mb-4">
           <h2 className="mb-4 font-['Cormorant_Garamond',serif] text-lg font-semibold text-stone-900">Embedding</h2>
