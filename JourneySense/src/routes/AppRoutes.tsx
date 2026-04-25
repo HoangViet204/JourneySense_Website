@@ -4,6 +4,7 @@ import StaffLayout from '../layouts/StaffLayout'
 import AccountManagementPage from '../pages/admin/AccountManagementPage'
 import AdminAuditDetailPage from '../pages/admin/AdminAuditDetailPage'
 import AdminAuditPage from '../pages/admin/AdminAuditPage'
+import AdminAnomalousJourneysPage from '../pages/admin/AdminAnomalousJourneysPage'
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
 import AdminJourneyDetailPage from '../pages/admin/AdminJourneyDetailPage'
 import AdminJourneysPage from '../pages/admin/AdminJourneysPage'
@@ -44,6 +45,7 @@ export default function AppRoutes() {
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="journeys" element={<AdminJourneysPage />} />
+        <Route path="journeys/anomalous" element={<AdminAnomalousJourneysPage />} />
         <Route path="journeys/:journeyId" element={<AdminJourneyDetailPage />} />
         <Route path="journeys/:journeyId/tracking" element={<AdminJourneyTrackingPage />} />
         <Route path="places" element={<AdminPlacesPage />} />

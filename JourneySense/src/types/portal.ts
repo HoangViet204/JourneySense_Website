@@ -163,6 +163,26 @@ export interface AdminJourneyListItemDto {
   createdAt?: string | null
   startedAt?: string | null
   completedAt?: string | null
+  // Anomaly fields (added by backend)
+  isAnomalous?: boolean | null
+  anomalyReason?: string | null
+  anomalyDetectedAt?: string | null
+}
+
+/** GET /api/admin/journeys/anomalous */
+export interface AdminAnomalousJourneyDto {
+  id: string
+  travelerId?: string | null
+  originAddress?: string | null
+  destinationAddress?: string | null
+  vehicleType?: string | null
+  status?: string | null
+  startedAt?: string | null
+  createdAt?: string | null
+  completedAt?: string | null
+  isAnomalous: boolean
+  anomalyReason?: string | null
+  anomalyDetectedAt?: string | null
 }
 
 // ——— AdminJourneyProgressDtos.cs ———
@@ -353,6 +373,10 @@ export interface JourneyDetailResponse {
   segments?: RouteSegmentResponse[] | null
   waypoints?: JourneyWaypointResponse[] | null
   selectedSegmentId?: string | null
+  // Anomaly fields
+  isAnomalous?: boolean | null
+  anomalyReason?: string | null
+  anomalyDetectedAt?: string | null
 }
 
 /** StaffFeedbacksController POST moderate */

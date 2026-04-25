@@ -13,6 +13,34 @@ const card = 'rounded-2xl border border-stone-200/80 bg-white p-5 sm:p-6 shadow-
 
 type JourneyStatusFilter = '' | 'Planning' | 'InProgress' | 'Completed' | 'Cancelled'
 
+function AnomalyBadge({ reason }: { reason?: string | null }) {
+  if (reason === 'stalled') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200">
+        <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+        </svg>
+        Kéo dài bất thường
+      </span>
+    )
+  }
+  if (reason === 'off_route') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-orange-200">
+        <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+        </svg>
+        Lệch tuyến
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200">
+      ⚠️ Bất thường
+    </span>
+  )
+}
+
 const STATUS_OPTIONS: Array<{ value: JourneyStatusFilter; label: string }> = [
   { value: '', label: 'Tất cả trạng thái' },
   { value: 'Planning', label: 'Lên kế hoạch' },
@@ -47,6 +75,7 @@ export default function AdminJourneysPage() {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<PortalPagedResult<AdminJourneyListItemDto> | null>(null)
   const [status, setStatus] = useState<JourneyStatusFilter>('')
+  const [anomalyOnly, setAnomalyOnly] = useState(false)
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
@@ -54,8 +83,9 @@ export default function AdminJourneysPage() {
   }, [loading])
 
   useEffect(() => {
-    const saved = loadListUiState<{ page?: number; status?: JourneyStatusFilter; scrollTop?: number }>(listKey)
+    const saved = loadListUiState<{ page?: number; status?: JourneyStatusFilter; anomalyOnly?: boolean; scrollTop?: number }>(listKey)
     if (typeof saved?.status === 'string') setStatus(saved.status)
+    if (typeof saved?.anomalyOnly === 'boolean') setAnomalyOnly(saved.anomalyOnly)
     if (typeof saved?.page === 'number' && Number.isFinite(saved.page) && saved.page >= 1) setPage(saved.page)
     setHydrated(true)
   }, [listKey])
@@ -64,7 +94,7 @@ export default function AdminJourneysPage() {
     setLoading(true)
     try {
       const res = await api.get<PortalPagedResult<AdminJourneyListItemDto>>('/api/admin/journeys', {
-        params: { page, pageSize: PAGE_SIZE, status: status || undefined },
+        params: { page, pageSize: PAGE_SIZE, status: status || undefined, anomalyOnly: anomalyOnly || undefined },
       })
       setData(res.data)
     } catch (e) {
@@ -73,7 +103,7 @@ export default function AdminJourneysPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, status])
+  }, [page, status, anomalyOnly])
 
   useEffect(() => {
     if (!hydrated) return
@@ -84,7 +114,7 @@ export default function AdminJourneysPage() {
     if (!hydrated) return
     if (!didInit.current) return
     setPage(1)
-  }, [hydrated, status])
+  }, [hydrated, status, anomalyOnly])
 
   useEffect(() => {
     if (!hydrated) return
@@ -103,15 +133,15 @@ export default function AdminJourneysPage() {
 
   useEffect(() => {
     if (!hydrated) return
-    patchListUiState(listKey, { page, status })
-  }, [hydrated, listKey, page, status])
+    patchListUiState(listKey, { page, status, anomalyOnly })
+  }, [hydrated, listKey, page, status, anomalyOnly])
 
   useEffect(() => {
     return () => {
       const el = scrollRef.current
-      patchListUiState(listKey, { page, status, scrollTop: el?.scrollTop ?? 0 })
+      patchListUiState(listKey, { page, status, anomalyOnly, scrollTop: el?.scrollTop ?? 0 })
     }
-  }, [listKey, page, status])
+  }, [listKey, page, status, anomalyOnly])
 
   useEffect(() => {
     if (!hydrated) return
@@ -144,17 +174,33 @@ export default function AdminJourneysPage() {
 
           <div className="flex flex-col gap-2 sm:items-end">
             <label className="text-xs font-semibold uppercase tracking-wide text-stone-600">Lọc trạng thái</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as JourneyStatusFilter)}
-              className="h-10 w-full min-w-[220px] rounded-xl border border-stone-200 bg-white px-3 text-sm font-semibold text-stone-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-200"
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value || 'all'} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as JourneyStatusFilter)}
+                className="h-10 min-w-[180px] rounded-xl border border-stone-200 bg-white px-3 text-sm font-semibold text-stone-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-200"
+              >
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value || 'all'} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setAnomalyOnly((v) => !v)}
+                className={`h-10 inline-flex items-center gap-2 rounded-xl border px-3 text-sm font-semibold shadow-sm transition-colors ${
+                  anomalyOnly
+                    ? 'border-red-300 bg-red-50 text-red-700 ring-1 ring-red-200'
+                    : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'
+                }`}
+              >
+                <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                Chỉ bất thường
+              </button>
+            </div>
           </div>
         </div>
 
@@ -209,9 +255,12 @@ export default function AdminJourneysPage() {
 
                 {!loading &&
                   items.map((row, i) => (
-                    <tr key={row.id} className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/40'}>
+                    <tr key={row.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-stone-50/40'} ${row.isAnomalous ? 'ring-1 ring-inset ring-red-100' : ''}`}>
                       <td className="px-4 py-3 font-semibold text-stone-900 truncate" title={row.originAddress ?? ''}>
-                        {row.originAddress ?? '—'}
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <span className="truncate">{row.originAddress ?? '—'}</span>
+                          {row.isAnomalous && <AnomalyBadge reason={row.anomalyReason} />}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-stone-700 truncate" title={row.destinationAddress ?? ''}>
                         {row.destinationAddress ?? '—'}
@@ -230,18 +279,8 @@ export default function AdminJourneysPage() {
                           aria-label="Xem chi tiết"
                         >
                           <svg className="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={1.75}
-                              d="M15 12a3 3 0 11-6 0 4 4 0 016 0z"
-                            />
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={1.75}
-                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                            />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 12a3 3 0 11-6 0 4 4 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                           </svg>
                           Chi tiết
                         </Link>

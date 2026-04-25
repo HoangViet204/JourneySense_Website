@@ -302,6 +302,42 @@ export default function AdminJourneyDetailPage() {
 
         {detail && (
           <>
+            {/* Anomaly banner */}
+            {detail.isAnomalous && (
+              <section className={`rounded-2xl border px-5 py-4 flex items-start gap-3 shadow-sm ${
+                detail.anomalyReason === 'off_route'
+                  ? 'border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50'
+                  : 'border-red-200 bg-gradient-to-r from-red-50 to-rose-50'
+              }`}>
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  detail.anomalyReason === 'off_route' ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'
+                }`}>
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-bold ${detail.anomalyReason === 'off_route' ? 'text-orange-800' : 'text-red-800'}`}>
+                    {detail.anomalyReason === 'stalled' && 'Hành trình kéo dài bất thường'}
+                    {detail.anomalyReason === 'off_route' && 'Lệch tuyến đường'}
+                    {!detail.anomalyReason && 'Hành trình bất thường'}
+                  </p>
+                  <p className={`text-xs mt-0.5 leading-relaxed ${detail.anomalyReason === 'off_route' ? 'text-orange-700' : 'text-red-700'}`}>
+                    {detail.anomalyReason === 'stalled' && 'Hành trình này đã chạy quá 8 tiếng, có thể user đang gặp sự cố.'}
+                    {detail.anomalyReason === 'off_route' && 'GPS của owner đang lệch > 5km khỏi tuyến đã setup.'}
+                    {!detail.anomalyReason && 'Hệ thống phát hiện bất thường trên hành trình này.'}
+                    {detail.anomalyDetectedAt && (
+                      <span className="ml-2 opacity-70">Phát hiện lúc {new Date(detail.anomalyDetectedAt).toLocaleString('vi-VN')}</span>
+                    )}
+                  </p>
+                  {canViewLiveTracking && (
+                    <p className="text-xs mt-1.5 font-medium text-stone-600">
+                      → Dùng nút <strong>Xem hành trình thực tế</strong> để kiểm tra vị trí live và polyline.
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
             <section className={card}>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>

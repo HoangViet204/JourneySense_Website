@@ -16,6 +16,7 @@ import {
 import api from '../../api/axios'
 import type {
   AdminAnalyticsSummaryResponse,
+  AdminAnomalousJourneyDto,
   TopVisitedPlacesResponse,
 } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
@@ -113,13 +114,17 @@ export default function AdminDashboardPage() {
   const [topVisited, setTopVisited] = useState<TopVisitedPlaceRow[] | null>(null)
   const [topVisitedSampleCount, setTopVisitedSampleCount] = useState(0)
   const [topVisitedRangeDays, setTopVisitedRangeDays] = useState(30)
+  const [anomalousJourneys, setAnomalousJourneys] = useState<AdminAnomalousJourneyDto[]>([])
 
   const load = useCallback(async () => {
     try {
       const { data: sum } = await api.get<AdminAnalyticsSummaryResponse>('/api/admin/analytics/summary')
       setSummary(sum)
 
-      const [topVisitedRes] = await Promise.allSettled([fetchTopVisitedPlaces(30, 10)])
+      const [topVisitedRes, anomalousRes] = await Promise.allSettled([
+        fetchTopVisitedPlaces(30, 10),
+        api.get<AdminAnomalousJourneyDto[]>('/api/admin/journeys/anomalous'),
+      ])
       if (topVisitedRes.status === 'fulfilled') {
         setTopVisited(topVisitedRes.value.rows)
         setTopVisitedSampleCount(topVisitedRes.value.sampleJourneys)
@@ -128,6 +133,9 @@ export default function AdminDashboardPage() {
         setTopVisited(null)
         setTopVisitedSampleCount(0)
         setTopVisitedRangeDays(30)
+      }
+      if (anomalousRes.status === 'fulfilled') {
+        setAnomalousJourneys(Array.isArray(anomalousRes.value.data) ? anomalousRes.value.data : [])
       }
     } catch (e) {
       toast.error(getApiErrorMessage(e, 'Không tải được dữ liệu thống kê'))
@@ -215,6 +223,75 @@ export default function AdminDashboardPage() {
             </>
           )}
         </div>
+        {/* Anomaly alert widget */}
+        {!loading && anomalousJourneys.length > 0 && (
+          <div className="rounded-2xl border border-red-200/80 bg-gradient-to-r from-red-50 to-rose-50 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-red-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center text-red-600 shrink-0">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="font-['Cormorant_Garamond',serif] text-base font-bold text-red-900">
+                    Hành trình cần chú ý
+                    <span className="ml-2 inline-flex items-center justify-center min-w-[22px] h-5 rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5">
+                      {anomalousJourneys.length}
+                    </span>
+                  </h2>
+                  <p className="text-[11px] text-red-600/80">Phát hiện bởi hệ thống quét tự động · cập nhật mỗi 5 phút</p>
+                </div>
+              </div>
+              <Link
+                to="/admin/journeys/anomalous"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 hover:bg-red-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors"
+              >
+                Xem tất cả →
+              </Link>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[640px]">
+                <thead>
+                  <tr className="bg-red-50/80 text-[10px] uppercase tracking-wider text-red-700/70 font-semibold">
+                    <th className="px-5 py-2.5 text-left">Hành trình</th>
+                    <th className="px-5 py-2.5 text-left">Loại bất thường</th>
+                    <th className="px-5 py-2.5 text-left">Phát hiện lúc</th>
+                    <th className="px-5 py-2.5 text-center">Xem</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-red-100/60">
+                  {anomalousJourneys.slice(0, 5).map((row) => (
+                    <tr key={row.id} className="hover:bg-red-50/60 transition-colors">
+                      <td className="px-5 py-2.5">
+                        <p className="font-medium text-stone-900 truncate max-w-[200px]">{row.originAddress ?? '—'}</p>
+                        <p className="text-[11px] text-stone-500 truncate max-w-[200px]">→ {row.destinationAddress ?? '—'}</p>
+                      </td>
+                      <td className="px-5 py-2.5">
+                        {row.anomalyReason === 'stalled' ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200">⏱ Kéo dài bất thường</span>
+                        ) : row.anomalyReason === 'off_route' ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-orange-200">📍 Lệch tuyến</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200">⚠️ Bất thường</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-2.5 text-xs text-stone-500 tabular-nums whitespace-nowrap">
+                        {row.anomalyDetectedAt ? new Date(row.anomalyDetectedAt).toLocaleString('vi-VN') : '—'}
+                      </td>
+                      <td className="px-5 py-2.5 text-center">
+                        <Link to={`/admin/journeys/${row.id}`} className="inline-flex items-center justify-center rounded-lg bg-white border border-red-200 px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 transition-colors">
+                          Chi tiết
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* Row 2: Revenue + System bar */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Revenue */}
