@@ -7,17 +7,6 @@ import { useAppSelector } from '../store/hooks'
 import type { PortalProfileResponse } from '../types/portal'
 
 const nav: { to: string; label: string; icon: ReactNode }[] = [
-    {
-      to: '/admin/transactions',
-      label: 'Lịch sử giao dịch',
-      icon: (
-        <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17 9V7a5 5 0 00-10 0v2" />
-          <rect width="20" height="14" x="2" y="9" rx="2" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M16 13h.01M8 13h.01" />
-        </svg>
-      ),
-    },
   {
     to: '/admin/dashboard',
     label: 'Bảng điều khiển',
@@ -32,18 +21,8 @@ const nav: { to: string; label: string; icon: ReactNode }[] = [
     label: 'Hành trình',
     icon: (
       <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.75}
-          d="M6 19a2 2 0 100-4 2 2 0 000 4zm12-10a2 2 0 100-4 2 2 0 000 4z"
-        />
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.75}
-          d="M8 17h5a5 5 0 005-5V7"
-        />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M6 19a2 2 0 100-4 2 2 0 000 4zm12-10a2 2 0 100-4 2 2 0 000 4z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8 17h5a5 5 0 005-5V7" />
       </svg>
     ),
   },
@@ -52,12 +31,7 @@ const nav: { to: string; label: string; icon: ReactNode }[] = [
     label: 'Địa điểm',
     icon: (
       <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.75}
-          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-        />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
     ),
@@ -77,6 +51,17 @@ const nav: { to: string; label: string; icon: ReactNode }[] = [
     icon: (
       <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+  {
+    to: '/admin/transactions',
+    label: 'Lịch sử giao dịch',
+    icon: (
+      <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17 9V7a5 5 0 00-10 0v2" />
+        <rect width="20" height="14" x="2" y="9" rx="2" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M16 13h.01M8 13h.01" />
       </svg>
     ),
   },
