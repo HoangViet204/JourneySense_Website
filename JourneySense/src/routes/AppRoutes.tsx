@@ -18,6 +18,7 @@ import LoginPage from '../pages/LoginPage'
 import StaffCreateJourneyPage from '../pages/staff/StaffCreateJourneyPage'
 import StaffDashboardPage from '../pages/staff/StaffDashboardPage'
 import StaffEditJourneyPage from '../pages/staff/StaffEditJourneyPage'
+import StaffPlacesPage from '../pages/staff/StaffPlacesPage'
 import StaffExperienceDetailPage from '../pages/staff/StaffExperienceDetailPage'
 import StaffFeedbackDetailPage from '../pages/staff/StaffFeedbackDetailPage'
 import StaffFeedbackPage from '../pages/staff/StaffFeedbackPage'
@@ -66,6 +67,7 @@ export default function AppRoutes() {
         }
       >
         <Route index element={<StaffDashboardPage />} />
+        <Route path="places" element={<StaffPlacesPage />} />
         <Route path="feedback" element={<StaffFeedbackPage />} />
         <Route path="feedback/journey/:journeyId" element={<StaffJourneyFeedbackDetailPage />} />
         <Route path="feedback/:feedbackId" element={<StaffFeedbackDetailPage />} />
