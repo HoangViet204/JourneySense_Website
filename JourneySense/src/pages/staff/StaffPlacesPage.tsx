@@ -41,8 +41,37 @@ export default function StaffPlacesPage() {
   const [loading, setLoading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [embedLoading, setEmbedLoading] = useState(false)
+  const [exportLoading, setExportLoading] = useState(false)
 
   const { confirm, dialog } = useConfirmDialog()
+
+  const exportExcel = async () => {
+    if (exportLoading) return
+    setExportLoading(true)
+    const t = toast.loading('Đang xuất Excel…')
+    try {
+      const res = await api.get('/api/staff/experiences/export', { responseType: 'blob' })
+      const blob = new Blob([res.data as BlobPart], {
+        type: res.headers['content-type'] ?? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      // Try to get filename from Content-Disposition header
+      const disposition = res.headers['content-disposition'] as string | undefined
+      const match = disposition?.match(/filename\*?=(?:UTF-8'')?["']?([^"';\r\n]+)["']?/i)
+      a.download = match?.[1] ? decodeURIComponent(match[1]) : `dia-diem-${new Date().toISOString().slice(0, 10)}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      toast.success('Xuất Excel thành công', { id: t })
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, 'Không xuất được file Excel'), { id: t })
+    } finally {
+      setExportLoading(false)
+    }
+  }
 
   const runEmbeddings = async () => {
     if (embedLoading) return
@@ -166,6 +195,24 @@ export default function StaffPlacesPage() {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            disabled={exportLoading}
+            onClick={() => void exportExcel()}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60 transition-colors shadow-sm"
+          >
+            <svg className={`w-4 h-4 shrink-0 ${exportLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {exportLoading ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              ) : (
+                <>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 17v3a1 1 0 001 1h16a1 1 0 001-1v-3" />
+                </>
+              )}
+            </svg>
+            {exportLoading ? 'Đang xuất…' : 'Xuất Excel'}
+          </button>
           <Link
             to="/staff/journeys/new"
             className="shrink-0 rounded-xl bg-[#c5a070] px-4 py-2 text-sm font-semibold text-white hover:bg-[#b08f5f]"

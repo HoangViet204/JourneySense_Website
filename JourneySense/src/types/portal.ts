@@ -167,6 +167,7 @@ export interface AdminJourneyListItemDto {
   isAnomalous?: boolean | null
   anomalyReason?: string | null
   anomalyDetectedAt?: string | null
+  allowLocationTracking?: boolean | null
 }
 
 /** GET /api/admin/journeys/anomalous */
@@ -183,6 +184,7 @@ export interface AdminAnomalousJourneyDto {
   isAnomalous: boolean
   anomalyReason?: string | null
   anomalyDetectedAt?: string | null
+  allowLocationTracking?: boolean | null
 }
 
 // ——— AdminJourneyProgressDtos.cs ———
@@ -377,6 +379,7 @@ export interface JourneyDetailResponse {
   isAnomalous?: boolean | null
   anomalyReason?: string | null
   anomalyDetectedAt?: string | null
+  allowLocationTracking?: boolean | null
 }
 
 /** StaffFeedbacksController POST moderate */

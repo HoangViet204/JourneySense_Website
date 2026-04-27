@@ -155,6 +155,7 @@ export default function AdminAnomalousJourneysPage() {
                     <th className="px-5 py-3.5">Điểm đi → Điểm đến</th>
                     <th className="px-5 py-3.5">Loại bất thường</th>
                     <th className="px-5 py-3.5">Trạng thái</th>
+                    <th className="px-5 py-3.5">GPS</th>
                     <th className="px-5 py-3.5">Bắt đầu lúc</th>
                     <th className="px-5 py-3.5">Phát hiện lúc</th>
                     <th className="px-5 py-3.5 text-center">Thao tác</th>
@@ -191,6 +192,26 @@ export default function AdminAnomalousJourneysPage() {
                           <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusPillClass(row.status)}`}>
                             {displayJourneyStatus(row.status)}
                           </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {row.allowLocationTracking === false ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1 text-[10px] font-semibold text-stone-500 ring-1 ring-stone-200">
+                              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                              </svg>
+                              Không đồng ý
+                            </span>
+                          ) : row.allowLocationTracking === true ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              Đã đồng ý
+                            </span>
+                          ) : (
+                            <span className="text-stone-400 text-xs">—</span>
+                          )}
                         </td>
                         <td className="px-5 py-3.5 text-xs text-stone-500 tabular-nums whitespace-nowrap">
                           {row.startedAt ? new Date(row.startedAt).toLocaleString('vi-VN') : formatDate(row.createdAt)}

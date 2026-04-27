@@ -745,6 +745,24 @@ export default function AdminJourneyTrackingPage() {
               )}
             </section>
 
+            {/* No location tracking consent notice */}
+            {detail.allowLocationTracking === false && (
+              <section className="rounded-2xl border border-stone-200/80 bg-gradient-to-r from-stone-50 to-slate-50 px-5 py-4 flex items-start gap-3 shadow-sm">
+                <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center text-stone-500 shrink-0">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-stone-700">Người dùng chưa đồng ý chia sẻ vị trí GPS</p>
+                  <p className="text-xs text-stone-500 mt-0.5 leading-relaxed">
+                    Hành trình này có <code className="bg-stone-100 px-1 rounded text-[11px]">allowLocationTracking = false</code>.
+                    Dữ liệu vị trí thành viên sẽ không có — bản đồ live và danh sách thành viên sẽ trống.
+                  </p>
+                </div>
+              </section>
+            )}
+
             <section className={card}>
               <div className="flex items-center justify-between gap-4">
                 <h2 className="font-['Cormorant_Garamond',serif] text-lg font-semibold text-stone-900">Bản đồ</h2>
@@ -755,6 +773,18 @@ export default function AdminJourneyTrackingPage() {
                 {!canShowMap ? (
                   <div className="flex h-[480px] items-center justify-center bg-stone-50 text-sm text-stone-600">
                     Không thể hiển thị bản đồ vì thiếu cấu hình Goong Map key.
+                  </div>
+                ) : detail.allowLocationTracking === false && !isCompletedStatus(detail.status) ? (
+                  <div className="flex h-[480px] flex-col items-center justify-center gap-3 bg-stone-50 text-center px-6">
+                    <div className="w-12 h-12 rounded-full bg-stone-100 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                      </svg>
+                    </div>
+                    <p className="text-sm font-semibold text-stone-600">Không có dữ liệu vị trí</p>
+                    <p className="text-xs text-stone-400 max-w-xs leading-relaxed">
+                      Người dùng chưa đồng ý chia sẻ GPS. Bản đồ live không khả dụng cho hành trình này.
+                    </p>
                   </div>
                 ) : (
                   <div ref={mapContainerRef} className="h-[480px] w-full" />
