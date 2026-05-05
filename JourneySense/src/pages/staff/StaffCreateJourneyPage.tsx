@@ -18,6 +18,10 @@ import type { StaffOutletContext } from '../../layouts/staffOutletContext'
 import type { CategoryResponseDto, CloudinaryUploadSignatureResponse, ExperiencePhotoInput } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { resolveCoordinatePayload } from '../../utils/coordinates'
+import {
+  type OpeningHoursValue,
+  serializeOpeningHours,
+} from '../../components/staff/OpeningHoursPicker'
 
 function buildTagsPayload(enumTags: string[], tagsExtraLine: string): string[] | undefined {
   const extra = parseAmenityInput(tagsExtraLine)
@@ -236,7 +240,7 @@ export default function StaffCreateJourneyPage() {
   const [tags, setTags] = useState<string[]>([])
   const [tagsExtraInput, setTagsExtraInput] = useState('')
   const [amenityInput, setAmenityInput] = useState('')
-  const [openingHours, setOpeningHours] = useState('')
+  const [openingHours, setOpeningHours] = useState<OpeningHoursValue>({})
   const [priceRange, setPriceRange] = useState('')
   const [crowdLevel, setCrowdLevel] = useState('normal')
   /** Ảnh kèm POST — `ExperiencePhotoInput` (URL). */
@@ -659,7 +663,7 @@ export default function StaffCreateJourneyPage() {
         amenityTags: amenityTags.length ? amenityTags : undefined,
         tags: tagsPayload,
         richDescription: richDescription.trim() || undefined,
-        openingHours: openingHours.trim() || undefined,
+        openingHours: serializeOpeningHours(openingHours) ?? undefined,
         priceRange: priceRange.trim() || undefined,
         crowdLevel: crowdLevel.trim() || 'normal',
         ...(photosPayload.length ? { photos: photosPayload } : {}),

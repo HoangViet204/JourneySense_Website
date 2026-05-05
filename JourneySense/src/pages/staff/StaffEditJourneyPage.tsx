@@ -24,6 +24,11 @@ import type {
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { resolveCoordinatePayload } from '../../utils/coordinates'
 import { resolveApiMediaUrl } from '../../utils/mediaUrl'
+import {
+  type OpeningHoursValue,
+  parseOpeningHoursString,
+  serializeOpeningHours,
+} from '../../components/staff/OpeningHoursPicker'
 
 const VIBE_SET = new Set<string>(VIBE_TYPE_OPTIONS.map((o) => o.value))
 
@@ -65,7 +70,7 @@ export default function StaffEditJourneyPage() {
   const [tags, setTags] = useState<string[]>([])
   const [tagsExtraInput, setTagsExtraInput] = useState('')
   const [amenityInput, setAmenityInput] = useState('')
-  const [openingHours, setOpeningHours] = useState('')
+  const [openingHours, setOpeningHours] = useState<OpeningHoursValue>({})
   const [priceRange, setPriceRange] = useState('')
   const [crowdLevel, setCrowdLevel] = useState('normal')
 
@@ -119,7 +124,7 @@ export default function StaffEditJourneyPage() {
       setTagsExtraInput(allTagsSafe.filter((t) => !VIBE_SET.has(t)).join('\n'))
 
       setAmenityInput(joinAmenityForInput(data.amenityTags))
-      setOpeningHours(data.openingHours ?? '')
+      setOpeningHours(parseOpeningHoursString(data.openingHours))
       setPriceRange(data.priceRange ?? '')
       const c = data.crowdLevel?.toLowerCase?.() ?? ''
       setCrowdLevel(['all', 'quiet', 'normal', 'busy'].includes(c) ? c : 'normal')
@@ -158,7 +163,7 @@ export default function StaffEditJourneyPage() {
       amenityTags: amenityTags.length ? amenityTags : undefined,
       tags: tagsPayload,
       richDescription: richDescription.trim() || undefined,
-      openingHours: openingHours.trim() || undefined,
+      openingHours: serializeOpeningHours(openingHours) ?? undefined,
       priceRange: priceRange.trim() || undefined,
       crowdLevel: crowdLevel || 'normal',
       ...(photosAppend?.length ? { photos: photosAppend } : {}),

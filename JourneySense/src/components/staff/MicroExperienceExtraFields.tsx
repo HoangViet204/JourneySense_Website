@@ -7,6 +7,7 @@ import {
   VIBE_TYPE_OPTIONS,
   WEATHER_TYPE_OPTIONS,
 } from '../../constants/microExperienceEnums'
+import OpeningHoursPicker, { type OpeningHoursValue } from './OpeningHoursPicker'
 
 const chipBase =
   'px-3 py-2 rounded-xl text-xs font-medium border transition-all duration-150 active:scale-[0.98] shadow-sm'
@@ -82,8 +83,8 @@ interface Props {
   onTagsExtraInputChange: (v: string) => void
   amenityInput: string
   onAmenityInputChange: (v: string) => void
-  openingHours: string
-  onOpeningHoursChange: (v: string) => void
+  openingHours: OpeningHoursValue
+  onOpeningHoursChange: (v: OpeningHoursValue) => void
   priceRange: string
   onPriceRangeChange: (v: string) => void
   crowdLevel: string
@@ -190,13 +191,7 @@ export default function MicroExperienceExtraFields({
 
         <FieldGroup title="Vận hành và giá">
           <label className={fieldLabel}>Giờ mở cửa</label>
-          <textarea
-            value={openingHours}
-            onChange={(e) => onOpeningHoursChange(e.target.value)}
-            rows={6}
-            placeholder="Ví dụ: T2–T6 9:00–21:00; T7–CN 8:00–22:00"
-            className={`${textareaBalanced} font-mono text-[13px]`}
-          />
+          <OpeningHoursPicker value={openingHours} onChange={onOpeningHoursChange} />
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={fieldLabel}>Khoảng giá</label>
