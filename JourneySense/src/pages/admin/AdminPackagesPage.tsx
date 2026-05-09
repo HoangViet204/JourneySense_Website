@@ -60,10 +60,6 @@ function PackageFormModal({ initial, editId, onClose, onSaved }: FormModalProps)
 
   const submit = async () => {
     if (!form.title.trim()) { toast.warning('Nhập tên gói.'); return }
-    if (form.price === 0 && !form.pointsRequired) {
-      toast.warning('Giá tiền và điểm không được đồng thời bằng 0.')
-      return
-    }
     if (form.distanceLimitKm === 0 && form.durationInDays === 0) {
       toast.warning('Giới hạn km và số ngày không được đồng thời bằng 0.')
       return
