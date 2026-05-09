@@ -8,6 +8,7 @@ import AdminDashboardPage from '../pages/admin/AdminDashboardPage'
 import AdminJourneyDetailPage from '../pages/admin/AdminJourneyDetailPage'
 import AdminJourneysPage from '../pages/admin/AdminJourneysPage'
 import AdminJourneyTrackingPage from '../pages/admin/AdminJourneyTrackingPage'
+import AdminPackagesPage from '../pages/admin/AdminPackagesPage'
 import AdminPlaceDetailPage from '../pages/admin/AdminPlaceDetailPage'
 import AdminPlacesPage from '../pages/admin/AdminPlacesPage'
 import AdminUserTransactionDetailPage from '../pages/admin/AdminUserTransactionDetailPage'
@@ -53,6 +54,7 @@ export default function AppRoutes() {
         <Route path="accounts/:userId/transactions" element={<AdminUserTransactionsPage />} />
         <Route path="accounts/:userId/transactions/:source/:id" element={<AdminUserTransactionDetailPage />} />
         <Route path="transactions" element={<AdminTransactionsPage />} />
+        <Route path="packages" element={<AdminPackagesPage />} />
         <Route path="audit" element={<AdminAuditPage />} />
         <Route path="audit/:auditId" element={<AdminAuditDetailPage />} />
         <Route path="profile" element={<PortalProfilePage />} />

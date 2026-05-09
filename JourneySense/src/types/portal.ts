@@ -511,7 +511,35 @@ export interface TopVisitedPlacesResponse {
   sampleJourneys: number
 }
 
-// ——— CloudinaryUploadSignatureResponse ———
+// ——— PackageResponseDto ———
+
+export interface PackageResponseDto {
+  id: string
+  title: string
+  price: number
+  salePrice?: number | null
+  type: string
+  distanceLimitKm: number
+  durationInDays: number
+  benefit?: string | null
+  isPopular: boolean
+  isActive: boolean
+  createdAt?: string | null
+  pointsRequired?: number | null
+}
+
+export interface PackageUpsertRequest {
+  title: string
+  price: number
+  salePrice?: number | null
+  type: string
+  distanceLimitKm: number
+  durationInDays: number
+  benefit?: string | null
+  isPopular: boolean
+  isActive: boolean
+  pointsRequired?: number | null
+}
 
 export interface CloudinaryUploadSignatureResponse {
   signature: string
