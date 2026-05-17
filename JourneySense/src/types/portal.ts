@@ -436,6 +436,8 @@ export interface MicroExperienceDetailResponse {
   name?: string | null
   categoryName?: string | null
   richDescription?: string | null
+  /** Số phút trung bình tham quan (staff nhập thủ công). `null` = chưa đặt. */
+  avgVisitDurationMinutes?: number | null
   /** Backend `decimal` — luôn có (mặc định 0). */
   avgRating: number
   /** Backend `decimal` — luôn có (mặc định 0). */
@@ -456,6 +458,17 @@ export interface MicroExperienceDetailResponse {
   latitude?: number | null
   longitude?: number | null
   photos?: ExperiencePhotoResponse[] | null
+}
+
+// ——— StaffExperienceVisitDurationLogItemDto.cs ———
+
+export interface StaffExperienceVisitDurationLogItemDto {
+  visitId: string
+  travelerId: string
+  travelerEmail: string | null
+  journeyId: string | null
+  visitedAt: string | null
+  actualDurationMinutes: number | null
 }
 
 // ——— CategoryResponseDto.cs ———

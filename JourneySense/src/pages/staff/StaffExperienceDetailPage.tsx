@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
-import type { ExperiencePhotoResponse, MicroExperienceDetailResponse } from '../../types/portal'
+import type {
+  ExperiencePhotoResponse,
+  MicroExperienceDetailResponse,
+  PortalPagedResult,
+  StaffExperienceVisitDurationLogItemDto,
+} from '../../types/portal'
 import { displayMicroExperienceTagVi, formatDate, formatOpeningHoursVi } from '../../utils/format'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { resolveApiMediaUrl } from '../../utils/mediaUrl'
@@ -66,30 +71,88 @@ function PhotoCard({ photo }: { photo: ExperiencePhotoResponse }) {
 
 export default function StaffExperienceDetailPage() {
   const { journeyId } = useParams<{ journeyId: string }>()
+  const experienceId = journeyId
   const navigate = useNavigate()
   const { setSidebarCollapsed } = useOutletContext<StaffOutletContext>()
   const [detail, setDetail] = useState<MicroExperienceDetailResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const [avgDraft, setAvgDraft] = useState('')
+  const [avgSaving, setAvgSaving] = useState(false)
+
+  const [logPage, setLogPage] = useState(1)
+  const [logLoading, setLogLoading] = useState(false)
+  const [logResult, setLogResult] = useState<PortalPagedResult<StaffExperienceVisitDurationLogItemDto> | null>(null)
+
+  const logItems = logResult?.items ?? []
+  const logTotal = logResult?.totalCount ?? 0
+  const logPageSize = logResult?.pageSize ?? 20
+  const logTotalPages = Math.max(1, Math.ceil(logTotal / logPageSize))
+
+  const avgHint = useMemo(() => {
+    const v = detail?.avgVisitDurationMinutes
+    if (v == null) return null
+    if (!Number.isFinite(v)) return null
+    const rounded = Math.round(v)
+    return rounded > 0 ? `Thường ở lại ~${rounded} phút.` : null
+  }, [detail?.avgVisitDurationMinutes])
+
   const load = useCallback(async () => {
-    if (!journeyId) return
+    if (!experienceId) return
     setLoading(true)
     try {
-      const { data } = await api.get<MicroExperienceDetailResponse>(`/api/micro-experiences/${journeyId}`)
+      const { data } = await api.get<MicroExperienceDetailResponse>(`/api/micro-experiences/${experienceId}`)
       setDetail(data)
+      setAvgDraft(data?.avgVisitDurationMinutes == null ? '' : String(data.avgVisitDurationMinutes))
     } catch (e) {
       toast.error(getApiErrorMessage(e, 'Không tải được chi tiết.'))
       setDetail(null)
     } finally {
       setLoading(false)
     }
-  }, [journeyId])
+  }, [experienceId])
+
+  useEffect(() => {
+    setLogPage(1)
+    setLogResult(null)
+  }, [experienceId])
+
+  const loadLogs = useCallback(async () => {
+    if (!experienceId) return
+    setLogLoading(true)
+    try {
+      const { data } = await api.get<PortalPagedResult<StaffExperienceVisitDurationLogItemDto>>(
+        `/api/staff/experiences/${experienceId}/visit-durations`,
+        {
+          params: {
+            page: logPage,
+            pageSize: 20,
+          },
+        },
+      )
+      setLogResult(data)
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, 'Không tải được log thời gian dừng chân.'))
+      setLogResult(null)
+    } finally {
+      setLogLoading(false)
+    }
+  }, [experienceId, logPage])
+
+  useEffect(() => {
+    if (!experienceId) return
+    void loadLogs()
+  }, [experienceId, loadLogs])
+
+  useEffect(() => {
+    if (logPage > logTotalPages) setLogPage(logTotalPages)
+  }, [logPage, logTotalPages])
 
   useEffect(() => {
     void load()
   }, [load])
 
-  if (!journeyId) return null
+  if (!experienceId) return null
 
   const photos = detail?.photos?.length ? detail.photos : []
 
@@ -111,12 +174,12 @@ export default function StaffExperienceDetailPage() {
             <h1 className="text-base font-bold text-stone-900 font-['Cormorant_Garamond',serif] truncate">
               Chi tiết trải nghiệm
             </h1>
-            <p className="text-[11px] text-stone-500 font-mono truncate">{journeyId}</p>
+            <p className="text-[11px] text-stone-500 font-mono truncate">{experienceId}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Link
-            to={`/staff/journeys/${journeyId}/edit`}
+            to={`/staff/journeys/${experienceId}/edit`}
             className="inline-flex items-center justify-center rounded-xl p-2.5 text-white bg-[#c5a070] hover:bg-[#b08f5f] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
             title="Sửa"
             aria-label="Sửa"
@@ -165,6 +228,7 @@ export default function StaffExperienceDetailPage() {
                     {detail.categoryName && (
                       <p className="text-sm text-stone-500 mt-1">Danh mục: {detail.categoryName}</p>
                     )}
+                    {avgHint && <p className="text-sm text-stone-600 mt-1">{avgHint}</p>}
                   </div>
                   {detail.status && (
                     <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-800 border border-stone-200">
@@ -237,6 +301,170 @@ export default function StaffExperienceDetailPage() {
                     {detail.crowdLevel ? displayMicroExperienceTagVi(detail.crowdLevel) : '—'}
                   </DlBlock>
                 </dl>
+              </section>
+
+              <section className="rounded-2xl bg-white border border-stone-200/80 shadow-md p-6 sm:p-7">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-stone-900 mb-1 font-['Cormorant_Garamond',serif]">
+                      Thời gian tham quan trung bình
+                    </h3>
+                    <p className="text-xs text-stone-500">
+                      Nhập số phút trung bình mà du khách thường ở lại. Để trống để xoá/không đặt.
+                    </p>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <label className="text-xs font-semibold text-stone-600">
+                      Phút
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        inputMode="numeric"
+                        className="ml-2 w-28 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
+                        placeholder="(trống)"
+                        value={avgDraft}
+                        onChange={(e) => setAvgDraft(e.target.value)}
+                        disabled={avgSaving}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-xl bg-[#c5a070] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f] disabled:opacity-60"
+                      disabled={avgSaving}
+                      onClick={() => {
+                        if (!experienceId) return
+                        if (avgSaving) return
+
+                        const raw = avgDraft.trim()
+                        let payload: number | null = null
+                        if (raw) {
+                          const n = Number(raw)
+                          if (!Number.isFinite(n) || n <= 0) {
+                            toast.warning('Thời gian tham quan trung bình phải là số > 0, hoặc để trống để xoá.')
+                            return
+                          }
+                          payload = n
+                        }
+
+                        setAvgSaving(true)
+                        const t = toast.loading('Đang lưu…')
+                        void (async () => {
+                          try {
+                            await api.patch(`/api/staff/experiences/${experienceId}/avg-visit-duration`, {
+                              avgVisitDurationMinutes: payload,
+                            })
+                            setDetail((prev) => (prev ? { ...prev, avgVisitDurationMinutes: payload } : prev))
+                            toast.success('Đã lưu', { id: t })
+                          } catch (e) {
+                            toast.error(getApiErrorMessage(e, 'Không lưu được.'), { id: t })
+                          } finally {
+                            setAvgSaving(false)
+                          }
+                        })()
+                      }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl bg-white border border-stone-200/80 shadow-md p-6 sm:p-7">
+                <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-stone-900 font-['Cormorant_Garamond',serif]">
+                      Log thời gian dừng chân
+                    </h3>
+                    <p className="text-xs text-stone-500 mt-1">Nguồn: visits.actualDurationMinutes</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void loadLogs()}
+                      className="inline-flex items-center justify-center rounded-xl bg-stone-100 px-3 py-2 text-sm font-semibold text-stone-800 transition-colors hover:bg-stone-200 disabled:opacity-60"
+                      disabled={logLoading}
+                    >
+                      Tải lại
+                    </button>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-stone-200/80">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-stone-50 text-stone-600">
+                      <tr>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">User</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Journey</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Visited</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide">Phút</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100 bg-white">
+                      {logLoading && (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-8 text-center text-stone-500">
+                            Đang tải…
+                          </td>
+                        </tr>
+                      )}
+
+                      {!logLoading && logItems.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-8 text-center text-stone-500">
+                            Chưa có log.
+                          </td>
+                        </tr>
+                      )}
+
+                      {!logLoading &&
+                        logItems.map((row) => (
+                          <tr key={row.visitId} className="hover:bg-stone-50/70">
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-stone-900 truncate max-w-[18rem]">
+                                {row.travelerEmail || row.travelerId}
+                              </div>
+                              <div className="text-[11px] text-stone-500 font-mono truncate max-w-[18rem]">
+                                {row.travelerId}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 font-mono text-xs text-stone-600">{row.journeyId ?? '—'}</td>
+                            <td className="px-4 py-3 text-stone-700">{row.visitedAt ? formatDate(row.visitedAt) : '—'}</td>
+                            <td className="px-4 py-3 text-right font-semibold text-stone-900">
+                              {row.actualDurationMinutes == null ? '—' : Math.round(row.actualDurationMinutes)}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs text-stone-500">
+                    Tổng: <span className="font-semibold text-stone-700">{logTotal.toLocaleString('vi-VN')}</span>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-60"
+                      onClick={() => setLogPage((p) => Math.max(1, p - 1))}
+                      disabled={logLoading || logPage <= 1}
+                    >
+                      ← Trước
+                    </button>
+                    <span className="text-sm text-stone-600">
+                      Trang <strong className="text-stone-900">{logPage}</strong> / {logTotalPages}
+                    </span>
+                    <button
+                      type="button"
+                      className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-60"
+                      onClick={() => setLogPage((p) => Math.min(logTotalPages, p + 1))}
+                      disabled={logLoading || logPage >= logTotalPages}
+                    >
+                      Sau →
+                    </button>
+                  </div>
+                </div>
               </section>
 
               <section className="rounded-2xl bg-white border border-stone-200/80 shadow-md p-6 sm:p-7 space-y-5">
