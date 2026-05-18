@@ -471,6 +471,23 @@ export interface StaffExperienceVisitDurationLogItemDto {
   actualDurationMinutes: number | null
 }
 
+export interface StaffExperienceVisitDurationSummaryDto {
+  /** Tổng số log theo filter (BE hiện set = totalCount). */
+  filteredTotalCount: number
+  /** Số log được tính (actualDurationMinutes > 0). */
+  countedCount: number
+  /** Tổng số phút (trên countedCount). */
+  sumActualDurationMinutes: number
+  /** Trung bình (sum / countedCount), null nếu countedCount = 0. */
+  averageActualDurationMinutes: number | null
+  minActualDurationMinutes: number | null
+  maxActualDurationMinutes: number | null
+}
+
+export type StaffExperienceVisitDurationLogResponse = PortalPagedResult<StaffExperienceVisitDurationLogItemDto> & {
+  summary?: StaffExperienceVisitDurationSummaryDto | null
+}
+
 // ——— CategoryResponseDto.cs ———
 
 export interface CategoryResponseDto {

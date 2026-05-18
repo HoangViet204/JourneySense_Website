@@ -7,8 +7,7 @@ import type { StaffOutletContext } from '../../layouts/staffOutletContext'
 import type {
   ExperiencePhotoResponse,
   MicroExperienceDetailResponse,
-  PortalPagedResult,
-  StaffExperienceVisitDurationLogItemDto,
+  StaffExperienceVisitDurationLogResponse,
 } from '../../types/portal'
 import { displayMicroExperienceTagVi, formatDate, formatOpeningHoursVi } from '../../utils/format'
 import { getApiErrorMessage } from '../../utils/apiMessage'
@@ -69,6 +68,14 @@ function PhotoCard({ photo }: { photo: ExperiencePhotoResponse }) {
   )
 }
 
+function toUtcIsoFromDatetimeLocal(input: string): string | undefined {
+  const s = input.trim()
+  if (!s) return undefined
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) return undefined
+  return d.toISOString()
+}
+
 export default function StaffExperienceDetailPage() {
   const { journeyId } = useParams<{ journeyId: string }>()
   const experienceId = journeyId
@@ -82,12 +89,44 @@ export default function StaffExperienceDetailPage() {
 
   const [logPage, setLogPage] = useState(1)
   const [logLoading, setLogLoading] = useState(false)
-  const [logResult, setLogResult] = useState<PortalPagedResult<StaffExperienceVisitDurationLogItemDto> | null>(null)
+  const [logResult, setLogResult] = useState<StaffExperienceVisitDurationLogResponse | null>(null)
+
+  const [logFromInput, setLogFromInput] = useState('')
+  const [logToInput, setLogToInput] = useState('')
+  const [logFromUtc, setLogFromUtc] = useState<string | undefined>(undefined)
+  const [logToUtc, setLogToUtc] = useState<string | undefined>(undefined)
 
   const logItems = logResult?.items ?? []
   const logTotal = logResult?.totalCount ?? 0
   const logPageSize = logResult?.pageSize ?? 20
   const logTotalPages = Math.max(1, Math.ceil(logTotal / logPageSize))
+
+  const actualAvgMinutesOverall = useMemo(() => {
+    const v = logResult?.summary?.averageActualDurationMinutes
+    if (v == null) return null
+    return Number.isFinite(v) ? v : null
+  }, [logResult?.summary?.averageActualDurationMinutes])
+
+  const actualAvgLabelOverall = useMemo(() => {
+    if (actualAvgMinutesOverall == null) return '—'
+    const rounded = Math.round(actualAvgMinutesOverall)
+    return rounded <= 0 ? '—' : `~${rounded}`
+  }, [actualAvgMinutesOverall])
+
+  const actualAvgMinutesThisPage = useMemo(() => {
+    const values = logItems
+      .map((x) => x.actualDurationMinutes)
+      .filter((v): v is number => v != null && Number.isFinite(v))
+    if (values.length === 0) return null
+    const sum = values.reduce((acc, v) => acc + v, 0)
+    return sum / values.length
+  }, [logItems])
+
+  const actualAvgLabelThisPage = useMemo(() => {
+    if (actualAvgMinutesThisPage == null) return '—'
+    const rounded = Math.round(actualAvgMinutesThisPage)
+    return rounded <= 0 ? '—' : `~${rounded}`
+  }, [actualAvgMinutesThisPage])
 
   const avgHint = useMemo(() => {
     const v = detail?.avgVisitDurationMinutes
@@ -115,18 +154,25 @@ export default function StaffExperienceDetailPage() {
   useEffect(() => {
     setLogPage(1)
     setLogResult(null)
+    setLogFromInput('')
+    setLogToInput('')
+    setLogFromUtc(undefined)
+    setLogToUtc(undefined)
   }, [experienceId])
 
   const loadLogs = useCallback(async () => {
     if (!experienceId) return
     setLogLoading(true)
     try {
-      const { data } = await api.get<PortalPagedResult<StaffExperienceVisitDurationLogItemDto>>(
+      const { data } = await api.get<StaffExperienceVisitDurationLogResponse>(
         `/api/staff/experiences/${experienceId}/visit-durations`,
         {
           params: {
             page: logPage,
             pageSize: 20,
+            includeSummary: true,
+            fromUtc: logFromUtc,
+            toUtc: logToUtc,
           },
         },
       )
@@ -137,7 +183,7 @@ export default function StaffExperienceDetailPage() {
     } finally {
       setLogLoading(false)
     }
-  }, [experienceId, logPage])
+  }, [experienceId, logFromUtc, logPage, logToUtc])
 
   useEffect(() => {
     if (!experienceId) return
@@ -376,9 +422,83 @@ export default function StaffExperienceDetailPage() {
                     <h3 className="text-sm font-bold text-stone-900 font-['Cormorant_Garamond',serif]">
                       Log thời gian dừng chân
                     </h3>
-                    <p className="text-xs text-stone-500 mt-1">Nguồn: visits.actualDurationMinutes</p>
+                    <p className="text-xs text-stone-500 mt-1">
+                      Nguồn: visits.actualDurationMinutes • TB thực tế (tổng):{' '}
+                      <span className="font-semibold text-stone-700">
+                        {actualAvgMinutesOverall == null ? actualAvgLabelThisPage : actualAvgLabelOverall}
+                      </span>{' '}
+                      phút
+                      {actualAvgMinutesOverall != null && actualAvgMinutesThisPage != null && (
+                        <span className="text-stone-400"> • (trang: {actualAvgLabelThisPage} phút)</span>
+                      )}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-end justify-end gap-2">
+                    <label className="text-xs font-semibold text-stone-600">
+                      Từ
+                      <input
+                        type="datetime-local"
+                        className="ml-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
+                        value={logFromInput}
+                        onChange={(e) => setLogFromInput(e.target.value)}
+                        disabled={logLoading}
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-stone-600">
+                      Đến
+                      <input
+                        type="datetime-local"
+                        className="ml-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
+                        value={logToInput}
+                        onChange={(e) => setLogToInput(e.target.value)}
+                        disabled={logLoading}
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const fromIso = toUtcIsoFromDatetimeLocal(logFromInput)
+                        const toIso = toUtcIsoFromDatetimeLocal(logToInput)
+
+                        if (logFromInput.trim() && !fromIso) {
+                          toast.warning('Giá trị “Từ” không hợp lệ.')
+                          return
+                        }
+                        if (logToInput.trim() && !toIso) {
+                          toast.warning('Giá trị “Đến” không hợp lệ.')
+                          return
+                        }
+                        if (fromIso && toIso && fromIso > toIso) {
+                          toast.warning('Khoảng thời gian không hợp lệ: “Từ” phải trước “Đến”.')
+                          return
+                        }
+
+                        setLogFromUtc(fromIso)
+                        setLogToUtc(toIso)
+                        setLogPage(1)
+                      }}
+                      className="inline-flex items-center justify-center rounded-xl bg-[#c5a070] px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f] disabled:opacity-60"
+                      disabled={logLoading}
+                      title="Áp dụng lọc (gửi fromUtc/toUtc theo UTC)"
+                    >
+                      Áp dụng
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLogFromInput('')
+                        setLogToInput('')
+                        setLogFromUtc(undefined)
+                        setLogToUtc(undefined)
+                        setLogPage(1)
+                      }}
+                      className="inline-flex items-center justify-center rounded-xl bg-stone-100 px-3 py-2 text-sm font-semibold text-stone-800 transition-colors hover:bg-stone-200 disabled:opacity-60"
+                      disabled={logLoading || (!logFromUtc && !logToUtc && !logFromInput.trim() && !logToInput.trim())}
+                      title="Xoá lọc"
+                    >
+                      Xoá
+                    </button>
                     <button
                       type="button"
                       onClick={() => void loadLogs()}
@@ -389,6 +509,13 @@ export default function StaffExperienceDetailPage() {
                     </button>
                   </div>
                 </div>
+
+                {(logFromUtc || logToUtc) && (
+                  <p className="text-[11px] text-stone-500 mb-3">
+                    Đang lọc theo khoảng thời gian (UTC). Từ: <span className="font-mono">{logFromUtc ?? '—'}</span> • Đến:{' '}
+                    <span className="font-mono">{logToUtc ?? '—'}</span>
+                  </p>
+                )}
 
                 <div className="overflow-x-auto rounded-xl border border-stone-200/80">
                   <table className="min-w-full text-sm">
