@@ -466,6 +466,7 @@ export interface StaffExperienceVisitDurationLogItemDto {
   visitId: string
   travelerId: string
   travelerEmail: string | null
+  travelerFullName?: string | null
   journeyId: string | null
   visitedAt: string | null
   actualDurationMinutes: number | null

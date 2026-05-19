@@ -530,7 +530,9 @@ export default function StaffExperienceDetailPage() {
                         <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Du khách</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Hành trình</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Ghé lúc</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide">Số phút</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide whitespace-nowrap">
+                          Số phút
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100 bg-white">
@@ -557,15 +559,15 @@ export default function StaffExperienceDetailPage() {
                           <tr key={row.visitId} className="hover:bg-stone-50/70">
                             <td className="px-4 py-3">
                               <div className="font-medium text-stone-900 truncate max-w-[18rem]">
-                                {row.travelerEmail || row.travelerId}
+                                {row.travelerFullName?.trim() || row.travelerEmail || row.travelerId}
                               </div>
-                              <div className="text-[11px] text-stone-500 font-mono truncate max-w-[18rem]">
-                                {row.travelerId}
-                              </div>
+                              {row.travelerFullName?.trim() && row.travelerEmail?.trim() && (
+                                <div className="text-[11px] text-stone-500 truncate max-w-[18rem]">{row.travelerEmail}</div>
+                              )}
                             </td>
                             <td className="px-4 py-3 font-mono text-xs text-stone-600">{row.journeyId ?? '—'}</td>
                             <td className="px-4 py-3 text-stone-700">{row.visitedAt ? formatDate(row.visitedAt) : '—'}</td>
-                            <td className="px-4 py-3 text-right font-semibold text-stone-900">
+                            <td className="px-4 py-3 text-right font-semibold text-stone-900 whitespace-nowrap">
                               {row.actualDurationMinutes == null ? '—' : Math.round(row.actualDurationMinutes)}
                             </td>
                           </tr>
