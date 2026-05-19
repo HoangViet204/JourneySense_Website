@@ -420,16 +420,22 @@ export default function StaffExperienceDetailPage() {
                 <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
                   <div>
                     <h3 className="text-sm font-bold text-stone-900 font-['Cormorant_Garamond',serif]">
-                      Log thời gian dừng chân
+                      Lượt ghé thăm & thời gian dừng chân
                     </h3>
                     <p className="text-xs text-stone-500 mt-1">
-                      Nguồn: visits.actualDurationMinutes • TB thực tế (tổng):{' '}
-                      <span className="font-semibold text-stone-700">
-                        {actualAvgMinutesOverall == null ? actualAvgLabelThisPage : actualAvgLabelOverall}
-                      </span>{' '}
-                      phút
-                      {actualAvgMinutesOverall != null && actualAvgMinutesThisPage != null && (
-                        <span className="text-stone-400"> • (trang: {actualAvgLabelThisPage} phút)</span>
+                      {actualAvgMinutesOverall == null ? (
+                        <>
+                          Thời gian dừng chân trung bình (trang này):{' '}
+                          <span className="font-semibold text-stone-700">{actualAvgLabelThisPage}</span> phút
+                        </>
+                      ) : (
+                        <>
+                          Thời gian dừng chân trung bình (tất cả):{' '}
+                          <span className="font-semibold text-stone-700">{actualAvgLabelOverall}</span> phút
+                          {actualAvgMinutesThisPage != null && (
+                            <span className="text-stone-400"> • (trang này: {actualAvgLabelThisPage} phút)</span>
+                          )}
+                        </>
                       )}
                     </p>
                   </div>
@@ -480,7 +486,7 @@ export default function StaffExperienceDetailPage() {
                       }}
                       className="inline-flex items-center justify-center rounded-xl bg-[#c5a070] px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f] disabled:opacity-60"
                       disabled={logLoading}
-                      title="Áp dụng lọc (gửi fromUtc/toUtc theo UTC)"
+                      title="Áp dụng bộ lọc"
                     >
                       Áp dụng
                     </button>
@@ -521,10 +527,10 @@ export default function StaffExperienceDetailPage() {
                   <table className="min-w-full text-sm">
                     <thead className="bg-stone-50 text-stone-600">
                       <tr>
-                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">User</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Journey</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Visited</th>
-                        <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide">Phút</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Du khách</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Hành trình</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Ghé lúc</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide">Số phút</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100 bg-white">
@@ -539,7 +545,9 @@ export default function StaffExperienceDetailPage() {
                       {!logLoading && logItems.length === 0 && (
                         <tr>
                           <td colSpan={4} className="px-4 py-8 text-center text-stone-500">
-                            Chưa có log.
+                            {logFromUtc || logToUtc || logFromInput.trim() || logToInput.trim()
+                              ? 'Không có dữ liệu trong khoảng thời gian đã chọn.'
+                              : 'Chưa có dữ liệu lượt ghé thăm.'}
                           </td>
                         </tr>
                       )}
