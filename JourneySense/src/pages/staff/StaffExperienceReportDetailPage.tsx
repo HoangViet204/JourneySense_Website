@@ -29,7 +29,7 @@ export default function StaffExperienceReportDetailPage() {
             </div>
             <div className="min-w-0">
               <h1 className="text-sm sm:text-base font-semibold text-stone-800 truncate font-['Cormorant_Garamond',serif]">
-                Chi tiết report
+                Chi tiết báo cáo
               </h1>
             </div>
           </div>
@@ -44,6 +44,7 @@ export default function StaffExperienceReportDetailPage() {
           reportId={reportId}
           backTo="/staff/experience-reports"
           experienceLink={(experienceId) => `/staff/journeys/${experienceId}`}
+          canDismiss={false}
         />
       </main>
     </div>

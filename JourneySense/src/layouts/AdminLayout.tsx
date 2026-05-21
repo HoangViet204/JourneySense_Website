@@ -38,7 +38,7 @@ const nav: { to: string; label: string; icon: ReactNode }[] = [
   },
   {
     to: '/admin/experience-reports',
-    label: 'Report địa điểm',
+    label: 'Báo cáo địa điểm',
     icon: (
       <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path

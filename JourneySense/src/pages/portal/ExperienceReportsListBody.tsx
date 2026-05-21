@@ -19,15 +19,14 @@ function statusBadgeClass(status?: string | null) {
 
 function reporterText(row: ExperienceReportListItemDto): string {
   const name = (row.reporterFullName ?? '').trim()
-  const email = (row.reporterEmail ?? '').trim()
-  if (name && email) return `${name} · ${email}`
   if (name) return name
+  const email = (row.reporterEmail ?? '').trim()
   if (email) return email
   return 'Ẩn danh'
 }
 
-export default function ExperienceReportsListBody(props: { basePath: string }) {
-  const { basePath } = props
+export default function ExperienceReportsListBody(props: { basePath: string; canDismiss?: boolean }) {
+  const { basePath, canDismiss = true } = props
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ totalCount: number; items: ExperienceReportListItemDto[] } | null>(null)
@@ -116,12 +115,12 @@ export default function ExperienceReportsListBody(props: { basePath: string }) {
               <col className="w-[210px]" />
             </colgroup>
             <thead>
-              <tr className="bg-[#f5f0e8]/90 text-left text-[11px] uppercase tracking-wider text-stone-600 font-semibold border-b border-stone-100">
-                <th className="px-4 py-3.5">Địa điểm</th>
-                <th className="px-4 py-3.5">Trạng thái</th>
-                <th className="px-4 py-3.5">Lý do</th>
-                <th className="px-4 py-3.5">Người report</th>
-                <th className="px-4 py-3.5 text-center">Thao tác</th>
+              <tr className="bg-[#f5f0e8]/90 text-[11px] uppercase tracking-wider text-stone-600 font-semibold border-b border-stone-100">
+                <th className="px-4 py-3.5 text-left align-middle whitespace-nowrap">Địa điểm</th>
+                <th className="px-4 py-3.5 text-left align-middle whitespace-nowrap">Trạng thái</th>
+                <th className="px-4 py-3.5 text-left align-middle whitespace-nowrap">Lý do</th>
+                <th className="px-4 py-3.5 text-left align-middle whitespace-nowrap">Người report</th>
+                <th className="px-4 py-3.5 text-center align-middle whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
@@ -142,18 +141,18 @@ export default function ExperienceReportsListBody(props: { basePath: string }) {
               {!loading &&
                 items.map((row) => (
                   <tr key={row.reportId} className="hover:bg-stone-50/70">
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-3.5 align-middle">
                       <div className="font-semibold text-stone-900 truncate">{row.experienceName || '—'}</div>
                       {row.experienceSlug ? (
-                        <div className="text-xs text-stone-400 truncate">/{row.experienceSlug}</div>
+                        <div className="text-xs text-stone-400 truncate">{row.experienceSlug.replace(/^\/+/, '')}</div>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-3.5 align-middle">
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusBadgeClass(row.experienceStatus)}`}>
                         {displayStatus(row.experienceStatus ?? '—')}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-3.5 align-middle">
                       {Array.isArray(row.reasons) && row.reasons.length ? (
                         <div className="flex flex-wrap gap-1.5">
                           {row.reasons.map((r) => (
@@ -169,10 +168,10 @@ export default function ExperienceReportsListBody(props: { basePath: string }) {
                         <span className="text-stone-400">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-3.5 align-middle">
                       <div className="text-sm text-stone-800 truncate">{reporterText(row)}</div>
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-3.5 align-middle">
                       <div className="flex items-center justify-center gap-2">
                         <Link
                           to={`${basePath}/${row.reportId}`}
@@ -180,13 +179,15 @@ export default function ExperienceReportsListBody(props: { basePath: string }) {
                         >
                           Xem
                         </Link>
-                        <button
-                          type="button"
-                          onClick={() => void dismiss(row)}
-                          className="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold shadow-sm hover:bg-rose-100"
-                        >
-                          Dismiss
-                        </button>
+                        {canDismiss ? (
+                          <button
+                            type="button"
+                            onClick={() => void dismiss(row)}
+                            className="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold shadow-sm hover:bg-rose-100"
+                          >
+                            Dismiss
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -196,8 +197,7 @@ export default function ExperienceReportsListBody(props: { basePath: string }) {
         </div>
 
         {!loading && totalCount > 0 && (
-          <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-stone-100 bg-white">
-            <div className="text-xs text-stone-500">Ẩn cột ngày tạo; xem trong chi tiết.</div>
+          <div className="flex items-center justify-end gap-3 px-4 sm:px-6 py-4 border-t border-stone-100 bg-white">
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => setPage(1)} disabled={page <= 1} className={pagerBtn}>
                 «

@@ -26,7 +26,7 @@ export default function StaffExperienceReportsPage() {
             </div>
             <div className="min-w-0">
               <h1 className="text-sm sm:text-base font-semibold text-stone-800 truncate font-['Cormorant_Garamond',serif]">
-                Report địa điểm
+                Báo cáo địa điểm
               </h1>
               <p className="text-[11px] text-stone-500 truncate">Danh sách report chưa dismiss</p>
             </div>
@@ -38,7 +38,7 @@ export default function StaffExperienceReportsPage() {
       </header>
 
       <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 max-w-[1400px] w-full mx-auto">
-        <ExperienceReportsListBody basePath="/staff/experience-reports" />
+        <ExperienceReportsListBody basePath="/staff/experience-reports" canDismiss={false} />
       </main>
     </div>
   )

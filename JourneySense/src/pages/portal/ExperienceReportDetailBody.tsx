@@ -31,8 +31,9 @@ export default function ExperienceReportDetailBody(props: {
   backTo: string
   experienceLink: (experienceId: string) => string
   userLink?: (userId: string) => string
+  canDismiss?: boolean
 }) {
-  const { reportId, backTo, experienceLink, userLink } = props
+  const { reportId, backTo, experienceLink, userLink, canDismiss = true } = props
   const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState<ExperienceReportDetailDto | null>(null)
   const navigate = useNavigate()
@@ -89,7 +90,7 @@ export default function ExperienceReportDetailBody(props: {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-base sm:text-lg font-semibold text-stone-900 font-['Cormorant_Garamond',serif] truncate">
-            Chi tiết report địa điểm
+            Chi tiết báo cáo địa điểm
           </h1>
           <p className="text-xs text-stone-500 truncate">{detail?.experienceName || '—'}</p>
         </div>
@@ -116,13 +117,15 @@ export default function ExperienceReportDetailBody(props: {
               Mở user
             </Link>
           ) : null}
-          <button
-            type="button"
-            onClick={() => void dismiss()}
-            className="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold shadow-sm hover:bg-rose-100"
-          >
-            Dismiss
-          </button>
+          {canDismiss ? (
+            <button
+              type="button"
+              onClick={() => void dismiss()}
+              className="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold shadow-sm hover:bg-rose-100"
+            >
+              Dismiss
+            </button>
+          ) : null}
         </div>
       </div>
 
