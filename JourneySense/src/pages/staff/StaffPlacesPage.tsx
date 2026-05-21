@@ -172,6 +172,26 @@ export default function StaffPlacesPage() {
   const iconBtn =
     'inline-flex items-center justify-center rounded-lg p-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2'
 
+  const getStatusUi = (raw: string | null | undefined) => {
+    const v = raw?.toLowerCase?.() ?? ''
+    if (v === 'active') {
+      return {
+        label: 'Hoạt động',
+        className: 'bg-emerald-50 text-emerald-800 ring-emerald-200/80',
+      }
+    }
+    if (v === 'inactive') {
+      return {
+        label: 'Không hoạt động',
+        className: 'bg-stone-100 text-stone-700 ring-stone-200/80',
+      }
+    }
+    return {
+      label: raw ?? '—',
+      className: 'bg-stone-50 text-stone-800 ring-stone-200/80',
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <header className="shrink-0 flex items-center justify-between gap-4 px-4 sm:px-6 py-3.5 bg-white/80 backdrop-blur border-b border-stone-200/80">
@@ -351,9 +371,16 @@ export default function StaffPlacesPage() {
                       <td className="px-4 py-3 font-semibold text-stone-900">{row.name ?? '—'}</td>
                       <td className="px-4 py-3 text-stone-600">{row.city ?? '—'}</td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-stone-100 text-stone-800">
-                          {row.status ?? '—'}
-                        </span>
+                        {(() => {
+                          const ui = getStatusUi(row.status)
+                          return (
+                            <span
+                              className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ${ui.className}`}
+                            >
+                              {ui.label}
+                            </span>
+                          )
+                        })()}
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap align-middle text-center">
                         <div className="flex items-center justify-center gap-0.5">

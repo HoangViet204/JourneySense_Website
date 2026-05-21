@@ -395,22 +395,6 @@ export default function StaffEditJourneyPage() {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <div className="flex items-center gap-2">
-            <label htmlFor="experience-status" className="text-xs font-semibold text-stone-600 hidden sm:block">
-              Trạng thái
-            </label>
-            <select
-              id="experience-status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              disabled={busy}
-              aria-label="Trạng thái"
-              className="h-9 rounded-xl border border-stone-200/90 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/35 focus:border-amber-400/55 disabled:opacity-50"
-            >
-              <option value="active">Đang hoạt động</option>
-              <option value="inactive">Ngưng hiển thị</option>
-            </select>
-          </div>
           <button type="button" onClick={() => navigate('/staff')} className="text-sm font-medium text-stone-600 hover:text-amber-800">
             Đóng
           </button>
@@ -425,6 +409,37 @@ export default function StaffEditJourneyPage() {
           )}
           {!loading && (
             <>
+              <section className={sectionCard}>
+                <ExperienceFormSectionHeader
+                  icon={
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  }
+                  title="Trạng thái"
+                />
+                <div className="max-w-sm">
+                  <label htmlFor="experience-status" className={labelCls}>
+                    Trạng thái hiển thị
+                  </label>
+                  <select
+                    id="experience-status"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    disabled={busy}
+                    className={selectCls}
+                  >
+                    <option value="active">Hoạt động</option>
+                    <option value="inactive">Không hoạt động</option>
+                  </select>
+                </div>
+              </section>
+
               <section className={sectionCard}>
                 <ExperienceFormSectionHeader
                   icon={
