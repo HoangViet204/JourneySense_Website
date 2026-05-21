@@ -650,6 +650,7 @@ export default function StaffCreateJourneyPage() {
       const createBody = {
         name: name.trim(),
         categoryId,
+        status: 'active',
         address: addressPayload,
         city: city.trim() || undefined,
         country: COUNTRY_LOCKED,
