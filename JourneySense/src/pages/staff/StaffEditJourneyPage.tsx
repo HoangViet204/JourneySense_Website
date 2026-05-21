@@ -395,6 +395,22 @@ export default function StaffEditJourneyPage() {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <div className="flex items-center gap-2">
+            <label htmlFor="experience-status" className="text-xs font-semibold text-stone-600 hidden sm:block">
+              Trạng thái
+            </label>
+            <select
+              id="experience-status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              disabled={busy}
+              aria-label="Trạng thái"
+              className="h-9 rounded-xl border border-stone-200/90 bg-white px-3 text-sm text-stone-800 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/35 focus:border-amber-400/55 disabled:opacity-50"
+            >
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Ngưng hiển thị</option>
+            </select>
+          </div>
           <button type="button" onClick={() => navigate('/staff')} className="text-sm font-medium text-stone-600 hover:text-amber-800">
             Đóng
           </button>
@@ -443,7 +459,7 @@ export default function StaffEditJourneyPage() {
                       <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} placeholder="Tên trải nghiệm" />
                     </div>
                     <div className={formGridGap}>
-                      <div className="min-w-0">
+                      <div className="min-w-0 md:col-span-2">
                         <label className={labelCls}>Danh mục</label>
                         <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={selectCls}>
                           <option value="">—</option>
@@ -452,13 +468,6 @@ export default function StaffEditJourneyPage() {
                               {c.name}
                             </option>
                           ))}
-                        </select>
-                      </div>
-                      <div className="min-w-0">
-                        <label className={labelCls}>Trạng thái</label>
-                        <select value={status} onChange={(e) => setStatus(e.target.value)} className={selectCls}>
-                          <option value="active">Đang hoạt động</option>
-                          <option value="inactive">Ngưng hiển thị</option>
                         </select>
                       </div>
                     </div>
