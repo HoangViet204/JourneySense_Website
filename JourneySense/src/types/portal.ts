@@ -39,6 +39,27 @@ export interface PortalPagedResult<T> {
   totalCount: number
 }
 
+// ——— ExperienceReports (staff/admin portal) ———
+
+/** Reason codes for reporting an experience/place. Backend may add more codes in the future. */
+export type ExperienceReportReasonCode = 'place_closed' | 'wrong_location' | 'other' | (string & {})
+
+export interface ExperienceReportListItemDto {
+  reportId: string
+  experienceId: string
+  experienceName: string
+  experienceSlug?: string | null
+  experienceStatus?: string | null
+  reporterUserId?: string | null
+  reporterEmail?: string | null
+  reporterFullName?: string | null
+  reasons: ExperienceReportReasonCode[]
+  otherText?: string | null
+  createdAt: string
+}
+
+export type ExperienceReportDetailDto = ExperienceReportListItemDto
+
 // ——— TransactionHistoryDtos.cs ———
 
 /** Item lịch sử giao dịch của user (PayOS hoặc đổi bằng điểm). */

@@ -11,6 +11,8 @@ import AdminJourneyTrackingPage from '../pages/admin/AdminJourneyTrackingPage'
 import AdminPackagesPage from '../pages/admin/AdminPackagesPage'
 import AdminPlaceDetailPage from '../pages/admin/AdminPlaceDetailPage'
 import AdminPlacesPage from '../pages/admin/AdminPlacesPage'
+import AdminExperienceReportsPage from '../pages/admin/AdminExperienceReportsPage'
+import AdminExperienceReportDetailPage from '../pages/admin/AdminExperienceReportDetailPage'
 import AdminUserTransactionDetailPage from '../pages/admin/AdminUserTransactionDetailPage'
 import AdminUserTransactionsPage from '../pages/admin/AdminUserTransactionsPage'
 import UserAccountDetailPage from '../pages/admin/UserAccountDetailPage'
@@ -24,6 +26,8 @@ import StaffExperienceDetailPage from '../pages/staff/StaffExperienceDetailPage'
 import StaffFeedbackDetailPage from '../pages/staff/StaffFeedbackDetailPage'
 import StaffFeedbackPage from '../pages/staff/StaffFeedbackPage'
 import StaffJourneyFeedbackDetailPage from '../pages/staff/StaffJourneyFeedbackDetailPage'
+import StaffExperienceReportsPage from '../pages/staff/StaffExperienceReportsPage'
+import StaffExperienceReportDetailPage from '../pages/staff/StaffExperienceReportDetailPage'
 import PortalProfilePage from '../pages/portal/PortalProfilePage'
 import HomeRedirect from './HomeRedirect'
 import ProtectedRoute from './ProtectedRoute'
@@ -49,6 +53,8 @@ export default function AppRoutes() {
         <Route path="journeys/:journeyId/tracking" element={<AdminJourneyTrackingPage />} />
         <Route path="places" element={<AdminPlacesPage />} />
         <Route path="places/:placeId" element={<AdminPlaceDetailPage />} />
+        <Route path="experience-reports" element={<AdminExperienceReportsPage />} />
+        <Route path="experience-reports/:reportId" element={<AdminExperienceReportDetailPage />} />
         <Route path="accounts" element={<AccountManagementPage />} />
         <Route path="accounts/:userId" element={<UserAccountDetailPage />} />
         <Route path="accounts/:userId/transactions" element={<AdminUserTransactionsPage />} />
@@ -70,6 +76,8 @@ export default function AppRoutes() {
       >
         <Route index element={<StaffDashboardPage />} />
         <Route path="places" element={<StaffPlacesPage />} />
+        <Route path="experience-reports" element={<StaffExperienceReportsPage />} />
+        <Route path="experience-reports/:reportId" element={<StaffExperienceReportDetailPage />} />
         <Route path="feedback" element={<StaffFeedbackPage />} />
         <Route path="feedback/journey/:journeyId" element={<StaffJourneyFeedbackDetailPage />} />
         <Route path="feedback/:feedbackId" element={<StaffFeedbackDetailPage />} />
