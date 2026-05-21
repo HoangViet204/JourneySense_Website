@@ -510,6 +510,51 @@ export type StaffExperienceVisitDurationLogResponse = PortalPagedResult<StaffExp
   summary?: StaffExperienceVisitDurationSummaryDto | null
 }
 
+// ——— StaffExperienceInProgressJourneysDto.cs ———
+
+export interface StaffExperienceInProgressJourneyItemDto {
+  journeyId: string
+  travelerId: string
+  /** Backend always returns `in_progress` for this endpoint. */
+  status: string
+  startedAt: string
+  originAddress?: string | null
+  destinationAddress?: string | null
+}
+
+/**
+ * GET `/api/staff/experiences/{experienceId}/in-progress-journeys`
+ * BE currently documents: `totalCount` + `items[]`.
+ */
+export interface StaffExperienceInProgressJourneysResponse {
+  totalCount: number
+  items: StaffExperienceInProgressJourneyItemDto[]
+}
+
+export interface StaffUpdateExperienceLocationRequest {
+  latitude: number
+  longitude: number
+}
+
+export interface StaffUpdateExperienceLocationResponse {
+  experienceId: string
+  latitude: number
+  longitude: number
+  notifiedJourneyIds: string[]
+}
+
+export type StaffExperienceStatus = 'active' | 'inactive'
+
+export interface StaffUpdateExperienceStatusRequest {
+  status: StaffExperienceStatus
+}
+
+export interface StaffUpdateExperienceStatusResponse {
+  experienceId: string
+  status: StaffExperienceStatus | string
+  notifiedJourneyIds: string[]
+}
+
 // ——— CategoryResponseDto.cs ———
 
 export interface CategoryResponseDto {

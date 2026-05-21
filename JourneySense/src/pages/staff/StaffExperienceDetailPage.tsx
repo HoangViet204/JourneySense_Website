@@ -2,11 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
+import { listInProgressJourneysUsingExperience, updateExperienceLocation, updateExperienceStatus } from '../../api/staffExperiences'
+import { useConfirmDialog } from '../../components/ConfirmDialog'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
 import type {
   ExperiencePhotoResponse,
   MicroExperienceDetailResponse,
+  StaffExperienceInProgressJourneysResponse,
+  StaffExperienceStatus,
   StaffExperienceVisitDurationLogResponse,
 } from '../../types/portal'
 import { displayMicroExperienceTagVi, formatDate, formatOpeningHoursVi } from '../../utils/format'
@@ -81,11 +85,28 @@ export default function StaffExperienceDetailPage() {
   const experienceId = journeyId
   const navigate = useNavigate()
   const { setSidebarCollapsed } = useOutletContext<StaffOutletContext>()
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [detail, setDetail] = useState<MicroExperienceDetailResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
   const [avgDraft, setAvgDraft] = useState('')
   const [avgSaving, setAvgSaving] = useState(false)
+
+  const previewPageSize = 20
+  const [previewPage, setPreviewPage] = useState(1)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewResult, setPreviewResult] = useState<StaffExperienceInProgressJourneysResponse | null>(null)
+
+  const previewItems = previewResult?.items ?? []
+  const previewTotal = previewResult?.totalCount ?? 0
+  const previewTotalPages = Math.max(1, Math.ceil(previewTotal / previewPageSize))
+
+  const [latDraft, setLatDraft] = useState('')
+  const [lngDraft, setLngDraft] = useState('')
+  const [locationSaving, setLocationSaving] = useState(false)
+
+  const [statusDraft, setStatusDraft] = useState<StaffExperienceStatus>('active')
+  const [statusSaving, setStatusSaving] = useState(false)
 
   const [logPage, setLogPage] = useState(1)
   const [logLoading, setLogLoading] = useState(false)
@@ -136,6 +157,20 @@ export default function StaffExperienceDetailPage() {
     return rounded > 0 ? `Thường ở lại ~${rounded} phút.` : null
   }, [detail?.avgVisitDurationMinutes])
 
+  const loadPreview = useCallback(async () => {
+    if (!experienceId) return
+    setPreviewLoading(true)
+    try {
+      const data = await listInProgressJourneysUsingExperience(experienceId, { page: previewPage, pageSize: previewPageSize })
+      setPreviewResult(data)
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, 'Không tải được danh sách hành trình đang diễn ra.'))
+      setPreviewResult(null)
+    } finally {
+      setPreviewLoading(false)
+    }
+  }, [experienceId, previewPage])
+
   const load = useCallback(async () => {
     if (!experienceId) return
     setLoading(true)
@@ -143,6 +178,14 @@ export default function StaffExperienceDetailPage() {
       const { data } = await api.get<MicroExperienceDetailResponse>(`/api/micro-experiences/${experienceId}`)
       setDetail(data)
       setAvgDraft(data?.avgVisitDurationMinutes == null ? '' : String(data.avgVisitDurationMinutes))
+
+      const lat = data?.latitude
+      const lng = data?.longitude
+      setLatDraft(lat == null ? '' : String(lat))
+      setLngDraft(lng == null ? '' : String(lng))
+
+      const s = (data?.status ?? '').toLowerCase()
+      setStatusDraft(s === 'inactive' ? 'inactive' : 'active')
     } catch (e) {
       toast.error(getApiErrorMessage(e, 'Không tải được chi tiết.'))
       setDetail(null)
@@ -158,7 +201,15 @@ export default function StaffExperienceDetailPage() {
     setLogToInput('')
     setLogFromUtc(undefined)
     setLogToUtc(undefined)
+
+    setPreviewPage(1)
+    setPreviewResult(null)
   }, [experienceId])
+
+  useEffect(() => {
+    if (!experienceId) return
+    if (previewPage > previewTotalPages) setPreviewPage(previewTotalPages)
+  }, [experienceId, previewPage, previewTotalPages])
 
   const loadLogs = useCallback(async () => {
     if (!experienceId) return
@@ -191,6 +242,11 @@ export default function StaffExperienceDetailPage() {
   }, [experienceId, loadLogs])
 
   useEffect(() => {
+    if (!experienceId) return
+    void loadPreview()
+  }, [experienceId, loadPreview])
+
+  useEffect(() => {
     if (logPage > logTotalPages) setLogPage(logTotalPages)
   }, [logPage, logTotalPages])
 
@@ -204,6 +260,7 @@ export default function StaffExperienceDetailPage() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-gradient-to-b from-[#fdfbf7] to-[#f5f0e8]">
+      {confirmDialog}
       <header className="shrink-0 flex items-center justify-between gap-4 px-4 sm:px-8 py-4 bg-white/90 backdrop-blur border-b border-stone-200/80 shadow-sm">
         <div className="flex items-center gap-3 min-w-0">
           <button
@@ -296,6 +353,263 @@ export default function StaffExperienceDetailPage() {
                       {detail.latitude.toFixed(5)}, {detail.longitude.toFixed(5)}
                     </span>
                   )}
+                </div>
+              </section>
+
+              <section className="rounded-2xl bg-white border border-stone-200/80 shadow-md p-6 sm:p-7">
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-stone-900 font-['Cormorant_Garamond',serif]">
+                      Đang được dùng trong hành trình
+                    </h3>
+                    <p className="text-xs text-stone-500 mt-1">
+                      Chỉ tính các journey <span className="font-mono">in_progress</span> và đã có <span className="font-mono">startedAt</span>.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void loadPreview()}
+                      className="inline-flex items-center justify-center rounded-xl bg-stone-100 px-3 py-2 text-sm font-semibold text-stone-800 transition-colors hover:bg-stone-200 disabled:opacity-60"
+                      disabled={previewLoading}
+                    >
+                      Tải lại
+                    </button>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-stone-200/80">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-stone-50 text-stone-600">
+                      <tr>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Journey</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Bắt đầu</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Tuyến</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100 bg-white">
+                      {previewLoading && (
+                        <tr>
+                          <td colSpan={3} className="px-4 py-8 text-center text-stone-500">
+                            Đang tải…
+                          </td>
+                        </tr>
+                      )}
+
+                      {!previewLoading && previewItems.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="px-4 py-8 text-center text-stone-500">
+                            Không có journey đang diễn ra nào đang dùng waypoint này.
+                          </td>
+                        </tr>
+                      )}
+
+                      {!previewLoading &&
+                        previewItems.map((row) => (
+                          <tr key={row.journeyId} className="hover:bg-stone-50/70">
+                            <td className="px-4 py-3">
+                              <div className="font-mono text-xs text-stone-700">{row.journeyId}</div>
+                              <div className="text-[11px] text-stone-500 font-mono mt-0.5">traveler: {row.travelerId}</div>
+                            </td>
+                            <td className="px-4 py-3 text-stone-700 whitespace-nowrap">
+                              {row.startedAt ? formatDate(row.startedAt) : '—'}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="text-stone-800 line-clamp-2">
+                                {(row.originAddress ?? '—') + ' → ' + (row.destinationAddress ?? '—')}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs text-stone-500">
+                    Tổng: <span className="font-semibold text-stone-700">{previewTotal.toLocaleString('vi-VN')}</span>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-60"
+                      onClick={() => setPreviewPage((p) => Math.max(1, p - 1))}
+                      disabled={previewLoading || previewPage <= 1}
+                    >
+                      ← Trước
+                    </button>
+                    <span className="text-sm text-stone-600">
+                      Trang <strong className="text-stone-900">{previewPage}</strong> / {previewTotalPages}
+                    </span>
+                    <button
+                      type="button"
+                      className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-60"
+                      onClick={() => setPreviewPage((p) => Math.min(previewTotalPages, p + 1))}
+                      disabled={previewLoading || previewPage >= previewTotalPages}
+                    >
+                      Sau →
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl bg-white border border-stone-200/80 shadow-md p-6 sm:p-7">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-stone-900 mb-1 font-['Cormorant_Garamond',serif]">
+                      Cập nhật vị trí (lat/lng)
+                    </h3>
+                    <p className="text-xs text-stone-500">Sau khi cập nhật, hệ thống sẽ notify realtime để mobile tự cập nhật marker/route.</p>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="text-xs font-semibold text-stone-600">
+                      Latitude
+                      <input
+                        type="number"
+                        step="0.000001"
+                        inputMode="decimal"
+                        className="ml-2 w-44 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
+                        placeholder="10.123456"
+                        value={latDraft}
+                        onChange={(e) => setLatDraft(e.target.value)}
+                        disabled={locationSaving}
+                      />
+                    </label>
+                    <label className="text-xs font-semibold text-stone-600">
+                      Longitude
+                      <input
+                        type="number"
+                        step="0.000001"
+                        inputMode="decimal"
+                        className="ml-2 w-44 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
+                        placeholder="106.123456"
+                        value={lngDraft}
+                        onChange={(e) => setLngDraft(e.target.value)}
+                        disabled={locationSaving}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-xl bg-[#c5a070] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f] disabled:opacity-60"
+                      disabled={locationSaving}
+                      onClick={() => {
+                        if (!experienceId) return
+                        if (locationSaving) return
+
+                        const lat = Number(latDraft)
+                        const lng = Number(lngDraft)
+                        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                          toast.warning('Latitude/Longitude không hợp lệ.')
+                          return
+                        }
+                        if (lat < -90 || lat > 90) {
+                          toast.warning('Latitude phải nằm trong [-90, 90].')
+                          return
+                        }
+                        if (lng < -180 || lng > 180) {
+                          toast.warning('Longitude phải nằm trong [-180, 180].')
+                          return
+                        }
+
+                        void (async () => {
+                          if (previewTotal > 0) {
+                            const ok = await confirm({
+                              title: 'Xác nhận cập nhật vị trí',
+                              message: `Vị trí mới sẽ ảnh hưởng ${previewTotal.toLocaleString('vi-VN')} journey đang diễn ra (mobile sẽ tự cập nhật marker/route).\nBạn vẫn muốn cập nhật?`,
+                              confirmText: 'Cập nhật',
+                              cancelText: 'Hủy',
+                            })
+                            if (!ok) return
+                          }
+
+                          setLocationSaving(true)
+                          const t = toast.loading('Đang cập nhật vị trí…')
+                          try {
+                            const res = await updateExperienceLocation(experienceId, { latitude: lat, longitude: lng })
+                            setDetail((prev) => (prev ? { ...prev, latitude: res.latitude, longitude: res.longitude } : prev))
+                            toast.success(`Đã cập nhật vị trí. Đã thông báo ${res.notifiedJourneyIds?.length ?? 0} hành trình.`, {
+                              id: t,
+                            })
+                            void loadPreview()
+                          } catch (e) {
+                            toast.error(getApiErrorMessage(e, 'Không cập nhật được vị trí.'), { id: t })
+                          } finally {
+                            setLocationSaving(false)
+                          }
+                        })()
+                      }}
+                    >
+                      Cập nhật
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl bg-white border border-stone-200/80 shadow-md p-6 sm:p-7">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-stone-900 mb-1 font-['Cormorant_Garamond',serif]">
+                      Trạng thái hoạt động
+                    </h3>
+                    <p className="text-xs text-stone-500">
+                      Chuyển <span className="font-mono">inactive</span> sẽ khiến mobile hiện prompt hỏi user có muốn tiếp tục đến hay không.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="text-xs font-semibold text-stone-600">
+                      Status
+                      <select
+                        className="ml-2 w-44 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
+                        value={statusDraft}
+                        onChange={(e) => setStatusDraft(e.target.value === 'inactive' ? 'inactive' : 'active')}
+                        disabled={statusSaving}
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </label>
+
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-xl bg-[#c5a070] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f] disabled:opacity-60"
+                      disabled={statusSaving}
+                      onClick={() => {
+                        if (!experienceId) return
+                        if (statusSaving) return
+
+                        void (async () => {
+                          if (previewTotal > 0) {
+                            const ok = await confirm({
+                              title: 'Xác nhận cập nhật trạng thái',
+                              message: `Experience này đang ảnh hưởng ${previewTotal.toLocaleString('vi-VN')} journey đang diễn ra.\nBạn vẫn muốn cập nhật trạng thái?`,
+                              confirmText: 'Cập nhật',
+                              cancelText: 'Hủy',
+                              danger: statusDraft === 'inactive',
+                            })
+                            if (!ok) return
+                          }
+
+                          setStatusSaving(true)
+                          const t = toast.loading('Đang cập nhật trạng thái…')
+                          try {
+                            const res = await updateExperienceStatus(experienceId, { status: statusDraft })
+                            setDetail((prev) => (prev ? { ...prev, status: res.status } : prev))
+                            toast.success(`Đã cập nhật trạng thái. Đã thông báo ${res.notifiedJourneyIds?.length ?? 0} hành trình.`, {
+                              id: t,
+                            })
+                            void loadPreview()
+                          } catch (e) {
+                            toast.error(getApiErrorMessage(e, 'Không cập nhật được trạng thái.'), { id: t })
+                          } finally {
+                            setStatusSaving(false)
+                          }
+                        })()
+                      }}
+                    >
+                      Cập nhật
+                    </button>
+                  </div>
                 </div>
               </section>
 
