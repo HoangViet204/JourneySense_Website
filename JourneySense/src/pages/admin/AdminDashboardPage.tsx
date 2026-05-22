@@ -72,6 +72,17 @@ function formatMoneyVnd(amount?: number | null) {
   }
 }
 
+function formatKm(km?: number | null) {
+  if (km == null) return '—'
+  const n = Number(km)
+  if (!Number.isFinite(n)) return '—'
+  try {
+    return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(n)
+  } catch {
+    return String(n)
+  }
+}
+
 async function fetchTopVisitedPlaces(days = 30, limit = 10): Promise<{ rows: TopVisitedPlaceRow[]; rangeDays: number; sampleJourneys: number }> {
   const { data } = await api.get<TopVisitedPlacesResponse>('/api/admin/analytics/top-visited-places', {
     params: { days, limit },
@@ -202,15 +213,17 @@ export default function AdminDashboardPage() {
           </button>
         </div>
 
-        {/* Row 1: 4 mini stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {loading ? [...Array(4)].map((_, i) => <Skeleton key={i} className="h-20" />) : (
+        {/* Row 1: mini stat cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          {loading ? [...Array(5)].map((_, i) => <Skeleton key={i} className="h-20" />) : (
             <>
               <MiniStat label="Tổng người dùng" value={formatVi(summary.usersTotal)} sub={`Active: ${formatVi(summary.usersActive)}`} accent="sky"
                 icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>} />
               <MiniStat label="Địa điểm đang mở" value={formatVi(summary.experiencesActive)} accent="amber"
                 icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
               <MiniStat label="Tổng hành trình" value={formatVi(summary.journeysTotal)} accent="emerald"
+                icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 9m0 8V9m0 0L9 7" /></svg>} />
+              <MiniStat label="Tổng km hành trình" value={`${formatKm(summary.totalJourneyKm)} km`} accent="violet"
                 icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 9m0 8V9m0 0L9 7" /></svg>} />
               <MiniStat label="Feedback chờ duyệt" value={formatVi(summary.feedbacksPendingModeration)} accent={summary.feedbacksPendingModeration > 0 ? 'rose' : 'violet'}
                 icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>} />

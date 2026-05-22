@@ -165,6 +165,8 @@ export interface AdminAnalyticsSummaryResponse {
   usersAdmin: number
   experiencesActive: number
   journeysTotal: number
+  /** Tổng số km hành trình (SUM user_packages.used_km) */
+  totalJourneyKm?: number | null
   feedbacksPendingModeration: number
   revenueTotalVnd?: number | null
   revenue30dVnd?: number | null
