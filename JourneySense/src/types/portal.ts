@@ -193,6 +193,52 @@ export interface AdminJourneyListItemDto {
   allowLocationTracking?: boolean | null
 }
 
+// ——— StaffJourneyDtos.cs ———
+
+/** GET `/api/staff/journeys` (phân trang) — staff xem tất cả hành trình. */
+export interface StaffJourneyListItemDto {
+  id: string
+  travelerId?: string | null
+  originAddress?: string | null
+  destinationAddress?: string | null
+  status?: string | null
+  createdAt?: string | null
+  startedAt?: string | null
+  allowLocationTracking?: boolean | null
+}
+
+/** Staff anomalies — `anomalyReason` currently only has 2 values. */
+export type StaffJourneyAnomalyReason = 'stalled' | 'offline'
+
+/** GET `/api/staff/journeys/anomalies` — hành trình bất thường + thông tin giải thích. */
+export interface StaffJourneyAnomalyListItemDto {
+  id: string
+  travelerId?: string | null
+  originAddress?: string | null
+  destinationAddress?: string | null
+  status?: string | null
+  startedAt?: string | null
+  createdAt?: string | null
+  allowLocationTracking?: boolean | null
+
+  anomalyReason: StaffJourneyAnomalyReason
+
+  /** Số phút đã chạy từ lúc startedAt tới hiện tại (backend tính sẵn). */
+  elapsedMinutes: number
+
+  // For `stalled`
+  plannedTotalMinutes?: number | null
+  estimatedTravelMinutes?: number | null
+  plannedVisitMinutes?: number | null
+
+  // For `offline`
+  /**
+   * Last activity timestamp of the journey owner (UTC). Can be null if never recorded.
+   * FE: offline = owner không có activity lên server trong > 3 giờ (không liên quan GPS).
+   */
+  ownerLastActiveAtUtc?: string | null
+}
+
 /** GET /api/admin/journeys/anomalous */
 export interface AdminAnomalousJourneyDto {
   id: string
@@ -403,6 +449,28 @@ export interface JourneyDetailResponse {
   anomalyReason?: string | null
   anomalyDetectedAt?: string | null
   allowLocationTracking?: boolean | null
+}
+
+// ——— StaffTravelerDtos.cs ———
+
+/** GET `/api/staff/travelers/{travelerId}` — dùng để lấy thông tin liên hệ. */
+export interface StaffTravelerDetailDto {
+  id: string
+  email?: string | null
+  phone?: string | null
+  fullName?: string | null
+  avatarUrl?: string | null
+  status?: string | null
+}
+
+/** GET `/api/staff/travelers` (phân trang). */
+export interface StaffTravelerListItemDto {
+  id: string
+  email?: string | null
+  phone?: string | null
+  fullName?: string | null
+  status?: string | null
+  createdAt?: string | null
 }
 
 /** StaffFeedbacksController POST moderate */

@@ -55,6 +55,37 @@ const staffNavItems: {
     ),
   },
   {
+    to: "/staff/journeys",
+    label: "Hành trình",
+    end: true,
+    icon: (
+      <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.75}
+          d="M9 20l-5.447-2.724A2 2 0 013 15.382V5.618a2 2 0 011.553-1.894L9 1.5l6 3 5.447-2.724A2 2 0 0121 3.618v9.764a2 2 0 01-1.553 1.894L15 22.5l-6-3z"
+        />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 1.5v19m6-16v19" />
+      </svg>
+    ),
+  },
+  {
+    to: "/staff/journeys/anomalies",
+    label: "Bất thường",
+    end: true,
+    icon: (
+      <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.75}
+          d="M12 9v4m0 4h.01M10.29 3.86l-8.01 14A1.5 1.5 0 003.58 20h16.84a1.5 1.5 0 001.3-2.14l-8.01-14a1.5 1.5 0 00-2.6 0z"
+        />
+      </svg>
+    ),
+  },
+  {
     to: "/staff/journeys/new",
     label: "Tạo trải nghiệm",
     icon: (

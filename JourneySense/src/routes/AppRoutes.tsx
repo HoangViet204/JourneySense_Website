@@ -28,6 +28,8 @@ import StaffFeedbackPage from '../pages/staff/StaffFeedbackPage'
 import StaffJourneyFeedbackDetailPage from '../pages/staff/StaffJourneyFeedbackDetailPage'
 import StaffExperienceReportsPage from '../pages/staff/StaffExperienceReportsPage'
 import StaffExperienceReportDetailPage from '../pages/staff/StaffExperienceReportDetailPage'
+import StaffJourneysPage from '../pages/staff/StaffJourneysPage'
+import StaffJourneyAnomaliesPage from '../pages/staff/StaffJourneyAnomaliesPage'
 import PortalProfilePage from '../pages/portal/PortalProfilePage'
 import HomeRedirect from './HomeRedirect'
 import ProtectedRoute from './ProtectedRoute'
@@ -81,6 +83,8 @@ export default function AppRoutes() {
         <Route path="feedback" element={<StaffFeedbackPage />} />
         <Route path="feedback/journey/:journeyId" element={<StaffJourneyFeedbackDetailPage />} />
         <Route path="feedback/:feedbackId" element={<StaffFeedbackDetailPage />} />
+        <Route path="journeys" element={<StaffJourneysPage />} />
+        <Route path="journeys/anomalies" element={<StaffJourneyAnomaliesPage />} />
         <Route path="journeys/new" element={<StaffCreateJourneyPage />} />
         <Route path="journeys/:journeyId/edit" element={<StaffEditJourneyPage />} />
         <Route path="journeys/:journeyId" element={<StaffExperienceDetailPage />} />
