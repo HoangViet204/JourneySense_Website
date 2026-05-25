@@ -205,6 +205,12 @@ export interface StaffJourneyListItemDto {
   createdAt?: string | null
   startedAt?: string | null
   allowLocationTracking?: boolean | null
+
+  /** Staff-only: last activity timestamp of journey owner (UTC). */
+  ownerLastActiveAtUtc?: string | null
+
+  /** Staff-only: true when owner has been offline too long (meaningful for in-progress only). */
+  isOwnerOfflineTooLong?: boolean | null
 }
 
 /** Staff anomalies — `anomalyReason` currently only has 2 values. */

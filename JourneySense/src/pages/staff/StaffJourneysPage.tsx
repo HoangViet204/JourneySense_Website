@@ -30,6 +30,11 @@ function statusPillClass(status?: string | null): string {
   return 'bg-stone-100 text-stone-800'
 }
 
+function isInProgressStatus(status?: string | null): boolean {
+  const s = status?.trim()?.toLowerCase() ?? ''
+  return s === 'inprogress' || s === 'in_progress'
+}
+
 export default function StaffJourneysPage() {
   const { setSidebarCollapsed } = useOutletContext<StaffOutletContext>()
   const location = useLocation()
@@ -240,9 +245,29 @@ export default function StaffJourneysPage() {
                         {row.destinationAddress ?? '—'}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusPillClass(row.status)}`}>
-                          {displayJourneyStatus(row.status)}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusPillClass(
+                              row.status,
+                            )}`}
+                          >
+                            {displayJourneyStatus(row.status)}
+                          </span>
+
+                          {isInProgressStatus(row.status) && (
+                            <div
+                              className={`text-[11px] font-semibold ${
+                                row.isOwnerOfflineTooLong ? 'text-rose-700' : 'text-stone-600'
+                              }`}
+                            >
+                              Owner: {row.isOwnerOfflineTooLong ? 'Offline quá lâu' : 'Active'}
+                              <span className="font-normal text-stone-500">
+                                {' '}
+                                · Last: {row.ownerLastActiveAtUtc ? formatDate(row.ownerLastActiveAtUtc) : '—'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-stone-700">{formatDate(row.startedAt ?? row.createdAt)}</td>
                       <td className="px-4 py-3 text-center">
