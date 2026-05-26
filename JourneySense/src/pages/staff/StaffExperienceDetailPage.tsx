@@ -17,6 +17,26 @@ import { displayMicroExperienceTagVi, formatDate, formatOpeningHoursVi } from '.
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { resolveApiMediaUrl } from '../../utils/mediaUrl'
 
+function getExperienceStatusUi(raw?: string | null): { label: string; className: string } {
+  const v = raw?.trim().toLowerCase()
+  if (v === 'active') {
+    return {
+      label: 'Hoạt động',
+      className: 'bg-emerald-50 text-emerald-800 ring-emerald-200/80',
+    }
+  }
+  if (v === 'inactive') {
+    return {
+      label: 'Không hoạt động',
+      className: 'bg-stone-100 text-stone-700 ring-stone-200/80',
+    }
+  }
+  return {
+    label: raw?.trim() || '—',
+    className: 'bg-stone-50 text-stone-800 ring-stone-200/80',
+  }
+}
+
 function ChipList({ items }: { items?: string[] | null }) {
   if (!items?.length) return <span className="text-stone-400 text-sm">—</span>
   return (
@@ -55,7 +75,7 @@ function PhotoCard({ photo }: { photo: ExperiencePhotoResponse }) {
       <a href={full} target="_blank" rel="noopener noreferrer" className="block aspect-[4/3]">
         <img
           src={src}
-          alt={photo.caption || 'Experience photo'}
+          alt={photo.caption || 'Ảnh trải nghiệm'}
           className="w-full h-full object-cover transition group-hover:opacity-95"
           loading="lazy"
         />
@@ -267,7 +287,7 @@ export default function StaffExperienceDetailPage() {
             type="button"
             onClick={() => setSidebarCollapsed((c) => !c)}
             className="lg:hidden p-2 rounded-xl text-stone-600 hover:bg-stone-100"
-            aria-label="Toggle sidebar"
+            aria-label="Bật hoặc tắt menu bên"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -298,7 +318,7 @@ export default function StaffExperienceDetailPage() {
           </Link>
           <button
             type="button"
-            onClick={() => navigate('/staff')}
+            onClick={() => navigate('/staff/places')}
             className="hidden text-sm font-medium text-stone-600 hover:text-amber-800 sm:inline"
           >
             Đóng
@@ -314,8 +334,8 @@ export default function StaffExperienceDetailPage() {
           {!loading && !detail && (
             <div className="rounded-2xl bg-white border border-stone-200 p-8 text-center space-y-4">
               <p className="text-stone-600 text-sm">Không có dữ liệu hoặc bạn không có quyền xem.</p>
-              <Link to="/staff" className="text-amber-700 text-sm font-semibold hover:underline">
-                ← Về danh sách
+              <Link to="/staff/places" className="text-amber-700 text-sm font-semibold hover:underline">
+                ← Về danh sách địa điểm
               </Link>
             </div>
           )}
@@ -333,11 +353,14 @@ export default function StaffExperienceDetailPage() {
                     )}
                     {avgHint && <p className="text-sm text-stone-600 mt-1">{avgHint}</p>}
                   </div>
-                  {detail.status && (
-                    <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-stone-100 text-stone-800 border border-stone-200">
-                      {detail.status}
-                    </span>
-                  )}
+                    {(() => {
+                      const ui = getExperienceStatusUi(detail.status)
+                      return (
+                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ring-1 ${ui.className}`}>
+                          {ui.label}
+                        </span>
+                      )
+                    })()}
                 </div>
                 <div className="flex flex-wrap gap-6 text-sm text-stone-600">
                   <span>
@@ -362,9 +385,6 @@ export default function StaffExperienceDetailPage() {
                     <h3 className="text-sm font-bold text-stone-900 font-['Cormorant_Garamond',serif]">
                       Đang được dùng trong hành trình
                     </h3>
-                    <p className="text-xs text-stone-500 mt-1">
-                      Chỉ tính các journey <span className="font-mono">in_progress</span> và đã có <span className="font-mono">startedAt</span>.
-                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -382,7 +402,7 @@ export default function StaffExperienceDetailPage() {
                   <table className="min-w-full text-sm">
                     <thead className="bg-stone-50 text-stone-600">
                       <tr>
-                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Journey</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Hành trình</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Bắt đầu</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Tuyến</th>
                       </tr>
@@ -399,7 +419,7 @@ export default function StaffExperienceDetailPage() {
                       {!previewLoading && previewItems.length === 0 && (
                         <tr>
                           <td colSpan={3} className="px-4 py-8 text-center text-stone-500">
-                            Không có journey đang diễn ra nào đang dùng waypoint này.
+                            Không có hành trình đang diễn ra nào đang dùng địa điểm này.
                           </td>
                         </tr>
                       )}
@@ -409,7 +429,7 @@ export default function StaffExperienceDetailPage() {
                           <tr key={row.journeyId} className="hover:bg-stone-50/70">
                             <td className="px-4 py-3">
                               <div className="font-mono text-xs text-stone-700">{row.journeyId}</div>
-                              <div className="text-[11px] text-stone-500 font-mono mt-0.5">traveler: {row.travelerId}</div>
+                              <div className="text-[11px] text-stone-500 font-mono mt-0.5">du khách: {row.travelerId}</div>
                             </td>
                             <td className="px-4 py-3 text-stone-700 whitespace-nowrap">
                               {row.startedAt ? formatDate(row.startedAt) : '—'}
@@ -459,11 +479,10 @@ export default function StaffExperienceDetailPage() {
                     <h3 className="text-sm font-bold text-stone-900 mb-1 font-['Cormorant_Garamond',serif]">
                       Cập nhật vị trí (lat/lng)
                     </h3>
-                    <p className="text-xs text-stone-500">Sau khi cập nhật, hệ thống sẽ notify realtime để mobile tự cập nhật marker/route.</p>
                   </div>
                   <div className="flex flex-wrap items-end gap-2">
                     <label className="text-xs font-semibold text-stone-600">
-                      Latitude
+                      Vĩ độ
                       <input
                         type="number"
                         step="0.000001"
@@ -476,7 +495,7 @@ export default function StaffExperienceDetailPage() {
                       />
                     </label>
                     <label className="text-xs font-semibold text-stone-600">
-                      Longitude
+                      Kinh độ
                       <input
                         type="number"
                         step="0.000001"
@@ -499,15 +518,15 @@ export default function StaffExperienceDetailPage() {
                         const lat = Number(latDraft)
                         const lng = Number(lngDraft)
                         if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-                          toast.warning('Latitude/Longitude không hợp lệ.')
+                          toast.warning('Vĩ độ/Kinh độ không hợp lệ.')
                           return
                         }
                         if (lat < -90 || lat > 90) {
-                          toast.warning('Latitude phải nằm trong [-90, 90].')
+                          toast.warning('Vĩ độ phải nằm trong [-90, 90].')
                           return
                         }
                         if (lng < -180 || lng > 180) {
-                          toast.warning('Longitude phải nằm trong [-180, 180].')
+                          toast.warning('Kinh độ phải nằm trong [-180, 180].')
                           return
                         }
 
@@ -515,7 +534,7 @@ export default function StaffExperienceDetailPage() {
                           if (previewTotal > 0) {
                             const ok = await confirm({
                               title: 'Xác nhận cập nhật vị trí',
-                              message: `Vị trí mới sẽ ảnh hưởng ${previewTotal.toLocaleString('vi-VN')} journey đang diễn ra (mobile sẽ tự cập nhật marker/route).\nBạn vẫn muốn cập nhật?`,
+                              message: `Vị trí mới sẽ ảnh hưởng ${previewTotal.toLocaleString('vi-VN')} hành trình đang diễn ra (ứng dụng sẽ tự cập nhật).\nBạn vẫn muốn cập nhật?`,
                               confirmText: 'Cập nhật',
                               cancelText: 'Hủy',
                             })
@@ -551,24 +570,30 @@ export default function StaffExperienceDetailPage() {
                     <h3 className="text-sm font-bold text-stone-900 mb-1 font-['Cormorant_Garamond',serif]">
                       Trạng thái hoạt động
                     </h3>
-                    <p className="text-xs text-stone-500">
-                      Chuyển <span className="font-mono">inactive</span> sẽ khiến mobile hiện prompt hỏi user có muốn tiếp tục đến hay không.
-                    </p>
                   </div>
 
                   <div className="flex flex-wrap items-end gap-2">
                     <label className="text-xs font-semibold text-stone-600">
-                      Status
+                      Trạng thái
                       <select
                         className="ml-2 w-44 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
                         value={statusDraft}
                         onChange={(e) => setStatusDraft(e.target.value === 'inactive' ? 'inactive' : 'active')}
                         disabled={statusSaving}
                       >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
+                        <option value="active">Hoạt động</option>
+                        <option value="inactive">Không hoạt động</option>
                       </select>
                     </label>
+
+                    {(() => {
+                      const ui = getExperienceStatusUi(statusDraft)
+                      return (
+                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ${ui.className}`}>
+                          {ui.label}
+                        </span>
+                      )
+                    })()}
 
                     <button
                       type="button"
@@ -582,7 +607,7 @@ export default function StaffExperienceDetailPage() {
                           if (previewTotal > 0) {
                             const ok = await confirm({
                               title: 'Xác nhận cập nhật trạng thái',
-                              message: `Experience này đang ảnh hưởng ${previewTotal.toLocaleString('vi-VN')} journey đang diễn ra.\nBạn vẫn muốn cập nhật trạng thái?`,
+                              message: `Địa điểm này đang ảnh hưởng ${previewTotal.toLocaleString('vi-VN')} hành trình đang diễn ra.\nBạn vẫn muốn cập nhật trạng thái?`,
                               confirmText: 'Cập nhật',
                               cancelText: 'Hủy',
                               danger: statusDraft === 'inactive',
@@ -615,12 +640,12 @@ export default function StaffExperienceDetailPage() {
 
               <section className="rounded-2xl bg-white border border-stone-200/80 shadow-md p-6 sm:p-7">
                 <h3 className="text-sm font-bold text-stone-900 mb-3 font-['Cormorant_Garamond',serif]">
-                  Ảnh experience
+                  Ảnh trải nghiệm
                   <span className="font-sans font-normal text-stone-500 text-xs ml-2">({photos.length})</span>
                 </h3>
                 {photos.length === 0 ? (
                   <p className="text-sm text-stone-500 py-6 text-center rounded-xl bg-stone-50 border border-dashed border-stone-200">
-                    Chưa có ảnh trong experience_photos.
+                    Chưa có ảnh trong bảng experience_photos.
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -669,9 +694,6 @@ export default function StaffExperienceDetailPage() {
                     <h3 className="text-sm font-bold text-stone-900 mb-1 font-['Cormorant_Garamond',serif]">
                       Thời gian tham quan trung bình
                     </h3>
-                    <p className="text-xs text-stone-500">
-                      Nhập số phút trung bình mà du khách thường ở lại. Để trống để xoá/không đặt.
-                    </p>
                   </div>
                   <div className="flex items-end gap-2">
                     <label className="text-xs font-semibold text-stone-600">
@@ -724,7 +746,7 @@ export default function StaffExperienceDetailPage() {
                         })()
                       }}
                     >
-                      Save
+                      Lưu
                     </button>
                   </div>
                 </div>
@@ -953,10 +975,10 @@ export default function StaffExperienceDetailPage() {
               </section>
 
               <Link
-                to="/staff"
+                to="/staff/places"
                 className="inline-flex text-sm font-medium text-[#c5a070] hover:underline mb-8"
               >
-                ← Danh sách micro-experiences
+                ← Danh sách địa điểm
               </Link>
             </>
           )}

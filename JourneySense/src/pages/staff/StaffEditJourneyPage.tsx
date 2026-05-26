@@ -395,7 +395,11 @@ export default function StaffEditJourneyPage() {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <button type="button" onClick={() => navigate('/staff')} className="text-sm font-medium text-stone-600 hover:text-amber-800">
+          <button
+            type="button"
+            onClick={() => navigate('/staff/places')}
+            className="text-sm font-medium text-stone-600 hover:text-amber-800"
+          >
             Đóng
           </button>
           <PortalUserMenu profilePath="/staff/profile" />
@@ -690,7 +694,7 @@ export default function StaffEditJourneyPage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                   <button
                     type="button"
-                    onClick={() => navigate('/staff')}
+                    onClick={() => navigate('/staff/places')}
                     className="rounded-xl border border-stone-300 bg-white px-6 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50"
                   >
                     Quay lại
