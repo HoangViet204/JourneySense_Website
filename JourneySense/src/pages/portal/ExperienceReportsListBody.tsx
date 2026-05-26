@@ -8,7 +8,7 @@ import { dismissExperienceReport, listExperienceReports } from '../../api/experi
 import { useConfirmDialog } from '../../components/ConfirmDialog'
 import { displayExperienceReportReasonVi } from '../../utils/experienceReportReasons'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 5
 
 function statusBadgeClass(status?: string | null) {
   const s = (status ?? '').trim().toLowerCase()
@@ -60,25 +60,24 @@ export default function ExperienceReportsListBody(props: { basePath: string; can
 
   const dismiss = async (row: ExperienceReportListItemDto) => {
     const ok = await confirm({
-      title: 'Dismiss report',
-      message: `Bạn có chắc muốn dismiss report này không?\n\nĐịa điểm: ${row.experienceName}`,
-      confirmText: 'Dismiss',
+      title: 'Bỏ qua báo cáo',
+      message: `Bạn có chắc muốn bỏ qua báo cáo này không?\n\nĐịa điểm: ${row.experienceName}`,
+      confirmText: 'Bỏ qua',
       cancelText: 'Hủy',
       danger: true,
     })
     if (!ok) return
-
-    const t = toast.loading('Đang dismiss…')
+    const t = toast.loading('Đang bỏ qua…')
     try {
       await dismissExperienceReport(row.reportId)
-      toast.success('Đã dismiss report', { id: t })
+      toast.success('Đã bỏ qua báo cáo', { id: t })
       setResult((prev) => {
         if (!prev) return prev
         const nextItems = prev.items.filter((x) => x.reportId !== row.reportId)
         return { ...prev, totalCount: Math.max(0, prev.totalCount - 1), items: nextItems }
       })
     } catch (e) {
-      toast.error(getApiErrorMessage(e, 'Không thể xóa report.'), { id: t })
+      toast.error(getApiErrorMessage(e, 'Không thể bỏ qua báo cáo.'), { id: t })
     }
   }
 
@@ -119,7 +118,7 @@ export default function ExperienceReportsListBody(props: { basePath: string; can
                 <th className="px-4 py-3.5 text-left align-middle whitespace-nowrap">Địa điểm</th>
                 <th className="px-4 py-3.5 text-left align-middle whitespace-nowrap">Trạng thái</th>
                 <th className="px-4 py-3.5 text-left align-middle whitespace-nowrap">Lý do</th>
-                <th className="px-4 py-3.5 text-left align-middle whitespace-nowrap">Người report</th>
+                <th className="px-4 py-3.5 text-left align-middle whitespace-nowrap">Người báo cáo</th>
                 <th className="px-4 py-3.5 text-center align-middle whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
@@ -185,7 +184,7 @@ export default function ExperienceReportsListBody(props: { basePath: string; can
                             onClick={() => void dismiss(row)}
                             className="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold shadow-sm hover:bg-rose-100"
                           >
-                            Dismiss
+                            Bỏ qua
                           </button>
                         ) : null}
                       </div>

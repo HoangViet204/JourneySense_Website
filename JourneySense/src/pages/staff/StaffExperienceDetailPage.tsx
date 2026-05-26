@@ -698,14 +698,14 @@ export default function StaffExperienceDetailPage() {
                     </h3>
                   </div>
                   <div className="flex items-end gap-2">
-                    <label className="text-xs font-semibold text-stone-600">
-                      Phút
+                    <label className="flex items-center gap-2 text-xs font-semibold text-stone-600">
+                      <span>Phút</span>
                       <input
                         type="number"
                         min={1}
                         step={1}
                         inputMode="numeric"
-                        className="ml-2 w-28 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
+                        className="h-10 w-28 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
                         placeholder="(trống)"
                         value={avgDraft}
                         onChange={(e) => setAvgDraft(e.target.value)}

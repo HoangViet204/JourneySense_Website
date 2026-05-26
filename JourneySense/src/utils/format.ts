@@ -17,6 +17,7 @@ export function displayStatus(status: string): string {
   const s = status?.toLowerCase()
   if (s === 'active') return 'Hoạt động'
   if (s === 'suspended') return 'Đã đình chỉ'
+  if (s === 'inactive') return 'Không hoạt động'
   return status
 }
 
