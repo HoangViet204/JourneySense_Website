@@ -9,10 +9,37 @@ import type { StaffJourneyAnomalyListItemDto, StaffTravelerDetailDto } from '../
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { displayJourneyStatus, formatDate } from '../../utils/format'
 
+type AnomaliesCache = {
+  at: number
+  items: StaffJourneyAnomalyListItemDto[]
+}
+
+let anomaliesCache: AnomaliesCache | null = null
+let anomaliesInFlight: Promise<StaffJourneyAnomalyListItemDto[]> | null = null
+
+async function getJourneyAnomaliesCached(opts?: { force?: boolean; ttlMs?: number }): Promise<StaffJourneyAnomalyListItemDto[]> {
+  const force = opts?.force ?? false
+  const ttlMs = opts?.ttlMs ?? 30_000
+
+  if (!force && anomaliesCache && Date.now() - anomaliesCache.at <= ttlMs) return anomaliesCache.items
+  if (!force && anomaliesInFlight) return anomaliesInFlight
+
+  anomaliesInFlight = listStaffJourneyAnomalies()
+    .then((items) => {
+      anomaliesCache = { at: Date.now(), items }
+      return items
+    })
+    .finally(() => {
+      anomaliesInFlight = null
+    })
+
+  return anomaliesInFlight
+}
+
 function reasonLabelVi(reason: StaffJourneyAnomalyListItemDto['anomalyReason']): string {
   if (reason === 'stalled') return 'Treo / quá lâu'
-  if (reason === 'offline') return 'Owner offline quá lâu'
-  return reason
+  if (reason === 'offline') return 'Chủ hành trình ngoại tuyến quá lâu'
+  return 'Khác'
 }
 
 function reasonBadgeClass(reason: StaffJourneyAnomalyListItemDto['anomalyReason']): string {
@@ -39,10 +66,10 @@ export default function StaffJourneyAnomaliesPage() {
   const [contactByTravelerId, setContactByTravelerId] = useState<Record<string, StaffTravelerDetailDto | null>>({})
   const [contactLoading, setContactLoading] = useState<Record<string, boolean>>({})
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { force?: boolean }) => {
     setLoading(true)
     try {
-      const data = await listStaffJourneyAnomalies()
+      const data = await getJourneyAnomaliesCached({ force: opts?.force })
       setRows(data)
     } catch (e) {
       toast.error(getApiErrorMessage(e, 'Không tải được danh sách hành trình bất thường'))
@@ -108,7 +135,7 @@ export default function StaffJourneyAnomaliesPage() {
               <h1 className="text-sm sm:text-base font-semibold text-stone-800 truncate font-['Cormorant_Garamond',serif]">
                 Hành trình bất thường
               </h1>
-              <p className="text-[11px] text-stone-500 truncate">Bất thường + lý do (không cần map/overview)</p>
+              <p className="text-[11px] text-stone-500 truncate">Bất thường + lý do (không cần bản đồ / tổng quan)</p>
             </div>
           </div>
         </div>
@@ -124,7 +151,7 @@ export default function StaffJourneyAnomaliesPage() {
           </div>
           <button
             type="button"
-            onClick={() => void load()}
+            onClick={() => void load({ force: true })}
             disabled={loading}
             className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-50 transition-colors"
           >
@@ -139,15 +166,17 @@ export default function StaffJourneyAnomaliesPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1180px] table-fixed text-sm">
               <colgroup>
-                <col className="w-[12%]" />
-                <col className="w-[22%]" />
-                <col className="w-[22%]" />
-                <col className="w-[12%]" />
                 <col className="w-[14%]" />
-                <col className="w-[18%]" />
+                <col className="w-[10%]" />
+                <col className="w-[20%]" />
+                <col className="w-[20%]" />
+                <col className="w-[11%]" />
+                <col className="w-[13%]" />
+                <col className="w-[12%]" />
               </colgroup>
               <thead>
                 <tr className="bg-[#f5f0e8]/90 text-left text-[11px] uppercase tracking-wider text-stone-600 font-semibold border-b border-stone-100">
+                  <th className="px-4 py-3">Hành trình</th>
                   <th className="px-4 py-3">Lý do</th>
                   <th className="px-4 py-3">Điểm đi</th>
                   <th className="px-4 py-3">Điểm đến</th>
@@ -159,7 +188,7 @@ export default function StaffJourneyAnomaliesPage() {
               <tbody className="divide-y divide-stone-100">
                 {loading && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-stone-500">
+                    <td colSpan={7} className="px-4 py-10 text-center text-stone-500">
                       Đang tải…
                     </td>
                   </tr>
@@ -167,7 +196,7 @@ export default function StaffJourneyAnomaliesPage() {
 
                 {!loading && sortedRows.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-stone-500">
+                    <td colSpan={7} className="px-4 py-10 text-center text-stone-500">
                       Không có bất thường
                     </td>
                   </tr>
@@ -182,6 +211,12 @@ export default function StaffJourneyAnomaliesPage() {
                     return (
                       <tr key={row.id} className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/40'}>
                         <td className="px-4 py-3">
+                          <div className="text-[11px] uppercase tracking-wider text-stone-400 font-semibold">Mã</div>
+                          <div className="text-[12px] text-stone-700 font-mono truncate" title={row.id}>
+                            {row.id}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
                           <span
                             className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${reasonBadgeClass(
                               row.anomalyReason,
@@ -189,9 +224,6 @@ export default function StaffJourneyAnomaliesPage() {
                           >
                             {reasonLabelVi(row.anomalyReason)}
                           </span>
-                          <div className="text-[11px] text-stone-500 font-mono mt-1 truncate" title={row.id}>
-                            id: {row.id}
-                          </div>
                         </td>
                         <td className="px-4 py-3 font-semibold text-stone-900 truncate" title={row.originAddress ?? ''}>
                           {row.originAddress ?? '—'}
@@ -207,30 +239,32 @@ export default function StaffJourneyAnomaliesPage() {
                         <td className="px-4 py-3 text-stone-700">
                           <div className="flex flex-col">
                             <span>{formatDate(row.startedAt ?? row.createdAt)}</span>
-                            <span className="text-[11px] text-stone-500">Elapsed: {row.elapsedMinutes} phút</span>
+                            <span className="text-[11px] text-stone-500">Đã trôi qua: {row.elapsedMinutes} phút</span>
                           </div>
                         </td>
                         <td className="px-4 py-3">
                           {row.anomalyReason === 'stalled' ? (
                             <div className="text-[12px] text-stone-700 space-y-0.5">
                               <div>
-                                Planned total: <span className="font-semibold">{row.plannedTotalMinutes ?? '—'}</span> phút
+                                Tổng dự kiến: <span className="font-semibold">{row.plannedTotalMinutes ?? '—'}</span> phút
                               </div>
                               <div>
-                                Est. travel: <span className="font-semibold">{row.estimatedTravelMinutes ?? '—'}</span> phút · Visit:
+                                Ước tính di chuyển: <span className="font-semibold">{row.estimatedTravelMinutes ?? '—'}</span> phút · Tham quan:
                                 <span className="font-semibold"> {row.plannedVisitMinutes ?? '—'}</span> phút
                               </div>
                               <div>
-                                Elapsed: <span className="font-semibold">{row.elapsedMinutes}</span> phút
+                                Đã trôi qua: <span className="font-semibold">{row.elapsedMinutes}</span> phút
                               </div>
                             </div>
                           ) : (
                             <div className="text-[12px] text-stone-700 space-y-0.5">
                               <div>
-                                Last active (UTC):{' '}
+                                Hoạt động gần nhất (giờ chuẩn quốc tế):{' '}
                                 <span className="font-semibold">{row.ownerLastActiveAtUtc ? formatDate(row.ownerLastActiveAtUtc) : '—'}</span>
                               </div>
-                              <div className="text-[11px] text-stone-500">Offline = không có activity từ app lên server trong &gt; 3 giờ</div>
+                              <div className="text-[11px] text-stone-500">
+                                Ngoại tuyến = không có hoạt động từ ứng dụng gửi lên máy chủ trong &gt; 3 giờ
+                              </div>
                             </div>
                           )}
 
@@ -245,15 +279,15 @@ export default function StaffJourneyAnomaliesPage() {
                                 ) : (
                                   <div className="text-xs text-stone-700">
                                     <div className="truncate" title={contact.email ?? ''}>
-                                      Email: <span className="font-semibold">{contact.email ?? '—'}</span>
+                                      Thư điện tử: <span className="font-semibold">{contact.email ?? '—'}</span>
                                     </div>
                                     <div className="truncate" title={contact.phone ?? ''}>
-                                      Phone: <span className="font-semibold">{contact.phone ?? '—'}</span>
+                                      Số điện thoại: <span className="font-semibold">{contact.phone ?? '—'}</span>
                                     </div>
                                   </div>
                                 )
                               ) : (
-                                <div className="text-xs text-stone-500">Thiếu travelerId</div>
+                                <div className="text-xs text-stone-500">Thiếu mã du khách</div>
                               )}
                             </div>
 
