@@ -107,7 +107,10 @@ export default function AdminLayout() {
   }, [email])
 
   useEffect(() => {
-    void loadProfileBrief()
+    const t = window.setTimeout(() => {
+      void loadProfileBrief()
+    }, 0)
+    return () => window.clearTimeout(t)
   }, [loadProfileBrief])
 
   useEffect(() => {

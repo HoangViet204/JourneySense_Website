@@ -49,10 +49,6 @@ export default function PortalUserMenu({ profilePath }: Props) {
   }, [email])
 
   useEffect(() => {
-    void loadProfileBrief()
-  }, [loadProfileBrief])
-
-  useEffect(() => {
     const onChanged = () => {
       void loadProfileBrief()
     }
@@ -62,9 +58,13 @@ export default function PortalUserMenu({ profilePath }: Props) {
 
   const avatarSrc = avatarPath ? resolveApiMediaUrl(avatarPath) : ''
 
-  useEffect(() => {
-    setImgFailed(false)
-  }, [avatarPath])
+  const handleToggleOpen = () => {
+    setOpen((v) => {
+      const next = !v
+      if (next) void loadProfileBrief()
+      return next
+    })
+  }
 
   useEffect(() => {
     if (!open) return
@@ -95,7 +95,7 @@ export default function PortalUserMenu({ profilePath }: Props) {
     <div className="relative shrink-0" ref={rootRef}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleToggleOpen}
         className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-stone-200/90 bg-white text-sm font-bold text-[#8f7349] shadow-sm ring-1 ring-stone-100 transition-colors hover:border-[#c5a070]/50 hover:bg-amber-50/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c5a070]/40"
         aria-expanded={open}
         aria-haspopup="menu"

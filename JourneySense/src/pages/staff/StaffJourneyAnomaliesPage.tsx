@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
@@ -14,12 +15,14 @@ type AnomaliesCache = {
   items: StaffJourneyAnomalyListItemDto[]
 }
 
+const ANOMALIES_TTL_MS = 30_000
+
 let anomaliesCache: AnomaliesCache | null = null
 let anomaliesInFlight: Promise<StaffJourneyAnomalyListItemDto[]> | null = null
 
 async function getJourneyAnomaliesCached(opts?: { force?: boolean; ttlMs?: number }): Promise<StaffJourneyAnomalyListItemDto[]> {
   const force = opts?.force ?? false
-  const ttlMs = opts?.ttlMs ?? 30_000
+  const ttlMs = opts?.ttlMs ?? ANOMALIES_TTL_MS
 
   if (!force && anomaliesCache && Date.now() - anomaliesCache.at <= ttlMs) return anomaliesCache.items
   if (!force && anomaliesInFlight) return anomaliesInFlight
@@ -57,17 +60,191 @@ function statusPillClass(status?: string | null): string {
   return 'bg-stone-100 text-stone-800'
 }
 
+type JourneyAnomalyDetailsDialogProps = {
+  open: boolean
+  row: StaffJourneyAnomalyListItemDto | null
+  onClose: () => void
+  contact: StaffTravelerDetailDto | null | undefined
+  contactLoading: boolean
+  onLoadContact: (travelerId: string) => void
+}
+
+function JourneyAnomalyDetailsDialog({
+  open,
+  row,
+  onClose,
+  contact,
+  contactLoading,
+  onLoadContact,
+}: JourneyAnomalyDetailsDialogProps) {
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open, onClose])
+
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [open])
+
+  if (!open || !row) return null
+
+  const tid = row.travelerId ?? ''
+
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-stone-900/40 [backdrop-filter:blur(3px)]"
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) onClose()
+        }}
+      />
+
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Chi tiết hành trình bất thường"
+        className="relative w-full max-w-2xl rounded-2xl border border-stone-200/80 bg-white shadow-xl shadow-stone-900/15 overflow-hidden"
+      >
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-stone-100 bg-[#f5f0e8]/60">
+          <div className="min-w-0">
+            <div className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold">Chi tiết</div>
+            <div className="text-base font-semibold text-stone-900 truncate">Hành trình {row.id}</div>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${reasonBadgeClass(row.anomalyReason)}`}
+              >
+                {reasonLabelVi(row.anomalyReason)}
+              </span>
+              <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusPillClass(row.status)}`}>
+                {displayJourneyStatus(row.status)}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white p-2 text-stone-700 shadow-sm hover:bg-stone-50"
+            aria-label="Đóng"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="max-h-[70vh] overflow-auto px-5 py-4 space-y-5">
+          <section className="rounded-2xl border border-stone-100 bg-white p-4">
+            <div className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold">Bắt đầu</div>
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-[180px_1fr] gap-2 text-sm">
+              <div className="text-stone-500">Thời điểm bắt đầu</div>
+              <div className="text-stone-800 font-semibold">{formatDate(row.startedAt ?? row.createdAt)}</div>
+              <div className="text-stone-500">Đã trôi qua</div>
+              <div className="text-stone-800 font-semibold">{row.elapsedMinutes} phút</div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-stone-100 bg-white p-4">
+            <div className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold">Giải thích</div>
+            {row.anomalyReason === 'stalled' ? (
+              <div className="mt-2 space-y-1 text-sm text-stone-700">
+                <div>
+                  Tổng dự kiến: <span className="font-semibold">{row.plannedTotalMinutes ?? '—'}</span> phút
+                </div>
+                <div>
+                  Ước tính di chuyển: <span className="font-semibold">{row.estimatedTravelMinutes ?? '—'}</span> phút · Tham quan:
+                  <span className="font-semibold"> {row.plannedVisitMinutes ?? '—'}</span> phút
+                </div>
+                <div>
+                  Đã trôi qua: <span className="font-semibold">{row.elapsedMinutes}</span> phút
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2 space-y-1 text-sm text-stone-700">
+                <div>
+                  Hoạt động gần nhất (giờ chuẩn quốc tế):{' '}
+                  <span className="font-semibold">{row.ownerLastActiveAtUtc ? formatDate(row.ownerLastActiveAtUtc) : '—'}</span>
+                </div>
+                <div className="text-[11px] text-stone-500">Ngoại tuyến = không có hoạt động từ ứng dụng gửi lên máy chủ trong &gt; 3 giờ</div>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-stone-100 bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold">Liên hệ</div>
+                {tid ? (
+                  contact === undefined ? (
+                    <div className="mt-1 text-sm text-stone-500">Chưa tải</div>
+                  ) : contact === null ? (
+                    <div className="mt-1 text-sm text-rose-600">Không tải được</div>
+                  ) : (
+                    <div className="mt-2 text-sm text-stone-700 space-y-1">
+                      <div className="truncate" title={contact.email ?? ''}>
+                        Thư điện tử: <span className="font-semibold">{contact.email ?? '—'}</span>
+                      </div>
+                      <div className="truncate" title={contact.phone ?? ''}>
+                        Số điện thoại: <span className="font-semibold">{contact.phone ?? '—'}</span>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <div className="mt-1 text-sm text-stone-500">Thiếu mã du khách</div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                disabled={!tid || contactLoading || contact !== undefined}
+                onClick={() => onLoadContact(tid)}
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-50 transition-colors"
+              >
+                {contactLoading ? 'Đang tải…' : contact !== undefined ? 'Đã tải' : 'Tải liên hệ'}
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <div className="px-5 py-4 border-t border-stone-100 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors"
+          >
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 export default function StaffJourneyAnomaliesPage() {
   const { setSidebarCollapsed } = useOutletContext<StaffOutletContext>()
 
-  const [loading, setLoading] = useState(false)
-  const [rows, setRows] = useState<StaffJourneyAnomalyListItemDto[]>([])
+  const [hasFreshCache] = useState(() => Boolean(anomaliesCache && Date.now() - anomaliesCache.at <= ANOMALIES_TTL_MS))
+  const [loading, setLoading] = useState(() => !hasFreshCache)
+  const [rows, setRows] = useState<StaffJourneyAnomalyListItemDto[]>(() => (hasFreshCache && anomaliesCache ? anomaliesCache.items : []))
 
   const [contactByTravelerId, setContactByTravelerId] = useState<Record<string, StaffTravelerDetailDto | null>>({})
   const [contactLoading, setContactLoading] = useState<Record<string, boolean>>({})
 
-  const load = useCallback(async (opts?: { force?: boolean }) => {
-    setLoading(true)
+  const [detailsRow, setDetailsRow] = useState<StaffJourneyAnomalyListItemDto | null>(null)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+
+  const load = useCallback(async (opts?: { force?: boolean; silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true)
     try {
       const data = await getJourneyAnomaliesCached({ force: opts?.force })
       setRows(data)
@@ -75,27 +252,45 @@ export default function StaffJourneyAnomaliesPage() {
       toast.error(getApiErrorMessage(e, 'Không tải được danh sách hành trình bất thường'))
       setRows([])
     } finally {
-      setLoading(false)
+      if (!opts?.silent) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    const t = window.setTimeout(() => {
+      void load({ silent: hasFreshCache })
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [load, hasFreshCache])
 
   const total = rows.length
 
   const sortedRows = useMemo(() => {
     // Prioritize stalled first, then offline, then newest startedAt
-    const score = (r: StaffJourneyAnomalyListItemDto) => (r.anomalyReason === 'stalled' ? 2 : r.anomalyReason === 'offline' ? 1 : 0)
-    return [...rows].sort((a, b) => {
-      const ds = score(b) - score(a)
+    const prepared = rows.map((r) => ({
+      r,
+      reasonScore: r.anomalyReason === 'stalled' ? 2 : r.anomalyReason === 'offline' ? 1 : 0,
+      startedAtTs: r.startedAt ? Date.parse(r.startedAt) : 0,
+    }))
+
+    prepared.sort((a, b) => {
+      const ds = b.reasonScore - a.reasonScore
       if (ds !== 0) return ds
-      const ta = a.startedAt ? Date.parse(a.startedAt) : 0
-      const tb = b.startedAt ? Date.parse(b.startedAt) : 0
-      return tb - ta
+      return b.startedAtTs - a.startedAtTs
     })
+
+    return prepared.map((x) => x.r)
   }, [rows])
+
+  const openDetails = useCallback((row: StaffJourneyAnomalyListItemDto) => {
+    setDetailsRow(row)
+    setDetailsOpen(true)
+  }, [])
+
+  const closeDetails = useCallback(() => {
+    setDetailsOpen(false)
+    setDetailsRow(null)
+  }, [])
 
   async function loadContact(travelerId: string) {
     if (!travelerId) return
@@ -145,6 +340,15 @@ export default function StaffJourneyAnomaliesPage() {
       </header>
 
       <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px] w-full mx-auto">
+        <JourneyAnomalyDetailsDialog
+          open={detailsOpen}
+          row={detailsRow}
+          onClose={closeDetails}
+          contact={detailsRow?.travelerId ? contactByTravelerId[detailsRow.travelerId] : undefined}
+          contactLoading={detailsRow?.travelerId ? (contactLoading[detailsRow.travelerId] ?? false) : false}
+          onLoadContact={(travelerId) => void loadContact(travelerId)}
+        />
+
         <div className="rounded-2xl bg-white/95 border border-stone-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex items-center justify-between gap-3">
           <div className="text-sm text-stone-700">
             {loading ? 'Đang tải…' : total > 0 ? `Có ${total} hành trình cần ưu tiên` : 'Không có hành trình bất thường'}
@@ -164,15 +368,14 @@ export default function StaffJourneyAnomaliesPage() {
 
         <section className="rounded-2xl bg-white border border-stone-100 shadow-[0_2px_8px_rgba(0,0,0,0.03)] overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1180px] table-fixed text-sm">
+            <table className="w-full min-w-[920px] table-fixed text-sm">
               <colgroup>
                 <col className="w-[14%]" />
                 <col className="w-[10%]" />
                 <col className="w-[20%]" />
                 <col className="w-[20%]" />
-                <col className="w-[11%]" />
-                <col className="w-[13%]" />
-                <col className="w-[12%]" />
+                <col className="w-[16%]" />
+                <col className="w-[20%]" />
               </colgroup>
               <thead>
                 <tr className="bg-[#f5f0e8]/90 text-left text-[11px] uppercase tracking-wider text-stone-600 font-semibold border-b border-stone-100">
@@ -181,14 +384,13 @@ export default function StaffJourneyAnomaliesPage() {
                   <th className="px-4 py-3">Điểm đi</th>
                   <th className="px-4 py-3">Điểm đến</th>
                   <th className="px-4 py-3">Trạng thái</th>
-                  <th className="px-4 py-3">Bắt đầu</th>
-                  <th className="px-4 py-3">Giải thích / Liên hệ</th>
+                  <th className="px-4 py-3">Chi tiết</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {loading && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-stone-500">
+                    <td colSpan={6} className="px-4 py-10 text-center text-stone-500">
                       Đang tải…
                     </td>
                   </tr>
@@ -196,7 +398,7 @@ export default function StaffJourneyAnomaliesPage() {
 
                 {!loading && sortedRows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-stone-500">
+                    <td colSpan={6} className="px-4 py-10 text-center text-stone-500">
                       Không có bất thường
                     </td>
                   </tr>
@@ -204,10 +406,6 @@ export default function StaffJourneyAnomaliesPage() {
 
                 {!loading &&
                   sortedRows.map((row, i) => {
-                    const tid = row.travelerId ?? ''
-                    const contact = tid ? contactByTravelerId[tid] : undefined
-                    const cLoading = tid ? (contactLoading[tid] ?? false) : false
-
                     return (
                       <tr key={row.id} className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/40'}>
                         <td className="px-4 py-3">
@@ -236,70 +434,14 @@ export default function StaffJourneyAnomaliesPage() {
                             {displayJourneyStatus(row.status)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-stone-700">
-                          <div className="flex flex-col">
-                            <span>{formatDate(row.startedAt ?? row.createdAt)}</span>
-                            <span className="text-[11px] text-stone-500">Đã trôi qua: {row.elapsedMinutes} phút</span>
-                          </div>
-                        </td>
                         <td className="px-4 py-3">
-                          {row.anomalyReason === 'stalled' ? (
-                            <div className="text-[12px] text-stone-700 space-y-0.5">
-                              <div>
-                                Tổng dự kiến: <span className="font-semibold">{row.plannedTotalMinutes ?? '—'}</span> phút
-                              </div>
-                              <div>
-                                Ước tính di chuyển: <span className="font-semibold">{row.estimatedTravelMinutes ?? '—'}</span> phút · Tham quan:
-                                <span className="font-semibold"> {row.plannedVisitMinutes ?? '—'}</span> phút
-                              </div>
-                              <div>
-                                Đã trôi qua: <span className="font-semibold">{row.elapsedMinutes}</span> phút
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-[12px] text-stone-700 space-y-0.5">
-                              <div>
-                                Hoạt động gần nhất (giờ chuẩn quốc tế):{' '}
-                                <span className="font-semibold">{row.ownerLastActiveAtUtc ? formatDate(row.ownerLastActiveAtUtc) : '—'}</span>
-                              </div>
-                              <div className="text-[11px] text-stone-500">
-                                Ngoại tuyến = không có hoạt động từ ứng dụng gửi lên máy chủ trong &gt; 3 giờ
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="mt-2 pt-2 border-t border-stone-100 flex items-start gap-2 justify-between">
-                            <div className="min-w-0">
-                              <div className="text-[11px] uppercase tracking-wider text-stone-400 font-semibold">Liên hệ</div>
-                              {tid ? (
-                                contact === undefined ? (
-                                  <div className="text-xs text-stone-500">Chưa tải</div>
-                                ) : contact === null ? (
-                                  <div className="text-xs text-rose-600">Không tải được</div>
-                                ) : (
-                                  <div className="text-xs text-stone-700">
-                                    <div className="truncate" title={contact.email ?? ''}>
-                                      Thư điện tử: <span className="font-semibold">{contact.email ?? '—'}</span>
-                                    </div>
-                                    <div className="truncate" title={contact.phone ?? ''}>
-                                      Số điện thoại: <span className="font-semibold">{contact.phone ?? '—'}</span>
-                                    </div>
-                                  </div>
-                                )
-                              ) : (
-                                <div className="text-xs text-stone-500">Thiếu mã du khách</div>
-                              )}
-                            </div>
-
-                            <button
-                              type="button"
-                              disabled={!tid || cLoading || contactByTravelerId[tid] !== undefined}
-                              onClick={() => void loadContact(tid)}
-                              className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-50 transition-colors"
-                            >
-                              {cLoading ? 'Đang tải…' : contactByTravelerId[tid] !== undefined ? 'Đã tải' : 'Tải liên hệ'}
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => openDetails(row)}
+                            className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors"
+                          >
+                            Xem chi tiết
+                          </button>
                         </td>
                       </tr>
                     )
