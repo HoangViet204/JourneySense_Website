@@ -139,7 +139,7 @@ export default function StaffExperienceDetailPage() {
 
   const logItems = logResult?.items ?? []
   const logTotal = logResult?.totalCount ?? 0
-  const logPageSize = logResult?.pageSize ?? 20
+  const logPageSize = logResult?.pageSize ?? 5
   const logTotalPages = Math.max(1, Math.ceil(logTotal / logPageSize))
 
   const actualAvgMinutesOverall = useMemo(() => {
@@ -239,12 +239,12 @@ export default function StaffExperienceDetailPage() {
         `/api/staff/experiences/${experienceId}/visit-durations`,
         {
           params: {
-            page: logPage,
-            pageSize: 20,
-            includeSummary: true,
-            fromUtc: logFromUtc,
-            toUtc: logToUtc,
-          },
+              page: logPage,
+              pageSize: 5,
+              includeSummary: true,
+              fromUtc: logFromUtc,
+              toUtc: logToUtc,
+            },
         },
       )
       setLogResult(data)
@@ -778,21 +778,21 @@ export default function StaffExperienceDetailPage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap items-end justify-end gap-2">
-                    <label className="text-xs font-semibold text-stone-600">
-                      Từ
+                    <label className="flex items-center gap-2 text-xs font-semibold text-stone-600">
+                      <span className="shrink-0">Từ</span>
                       <input
                         type="datetime-local"
-                        className="ml-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
+                        className="h-10 w-44 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
                         value={logFromInput}
                         onChange={(e) => setLogFromInput(e.target.value)}
                         disabled={logLoading}
                       />
                     </label>
-                    <label className="text-xs font-semibold text-stone-600">
-                      Đến
+                    <label className="flex items-center gap-2 text-xs font-semibold text-stone-600">
+                      <span className="shrink-0">Đến</span>
                       <input
                         type="datetime-local"
-                        className="ml-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
+                        className="h-10 w-44 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
                         value={logToInput}
                         onChange={(e) => setLogToInput(e.target.value)}
                         disabled={logLoading}
