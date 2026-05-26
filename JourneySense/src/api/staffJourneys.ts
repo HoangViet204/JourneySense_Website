@@ -19,15 +19,41 @@ export async function listStaffJourneys(params?: {
 }
 
 /**
- * Backend currently returns a non-paginated anomaly list.
- * Be defensive: accept either `T[]` or `{ items: T[] }`.
+ * GET `/api/staff/journeys/anomalies` (paginated).
+ * Be defensive: accept older response shapes and normalize.
  */
-export async function listStaffJourneyAnomalies(): Promise<StaffJourneyAnomalyListItemDto[]> {
-  const { data } = await api.get<StaffJourneyAnomalyListItemDto[] | { items?: StaffJourneyAnomalyListItemDto[] }>(
-    '/api/staff/journeys/anomalies',
-  )
+export async function listStaffJourneyAnomalies(params?: {
+  page?: number
+  pageSize?: number
+}): Promise<PortalPagedResult<StaffJourneyAnomalyListItemDto>> {
+  const page = params?.page ?? 1
+  const pageSize = params?.pageSize ?? 10
 
-  if (Array.isArray(data)) return data
-  if (data && Array.isArray(data.items)) return data.items
-  return []
+  const { data } = await api.get<
+    | PortalPagedResult<StaffJourneyAnomalyListItemDto>
+    | StaffJourneyAnomalyListItemDto[]
+    | { items?: StaffJourneyAnomalyListItemDto[] }
+  >('/api/staff/journeys/anomalies', {
+    params: {
+      page,
+      pageSize,
+    },
+  })
+
+  if (data && typeof data === 'object' && 'items' in data && Array.isArray((data as { items?: unknown }).items)) {
+    const d = data as Partial<PortalPagedResult<StaffJourneyAnomalyListItemDto>>
+    const items = (d.items ?? []) as StaffJourneyAnomalyListItemDto[]
+    return {
+      items,
+      page: typeof d.page === 'number' ? d.page : page,
+      pageSize: typeof d.pageSize === 'number' ? d.pageSize : pageSize,
+      totalCount: typeof d.totalCount === 'number' ? d.totalCount : items.length,
+    }
+  }
+
+  if (Array.isArray(data)) {
+    return { items: data, page, pageSize, totalCount: data.length }
+  }
+
+  return { items: [], page, pageSize, totalCount: 0 }
 }

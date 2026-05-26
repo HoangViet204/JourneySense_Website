@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -6,37 +6,56 @@ import PortalUserMenu from '../../components/portal/PortalUserMenu'
 import { listStaffJourneyAnomalies } from '../../api/staffJourneys'
 import { getStaffTraveler } from '../../api/staffTravelers'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
-import type { StaffJourneyAnomalyListItemDto, StaffTravelerDetailDto } from '../../types/portal'
+import type { PortalPagedResult, StaffJourneyAnomalyListItemDto, StaffTravelerDetailDto } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { displayJourneyStatus, formatDate } from '../../utils/format'
 
-type AnomaliesCache = {
-  at: number
-  items: StaffJourneyAnomalyListItemDto[]
-}
-
+const PAGE_SIZE = 10
 const ANOMALIES_TTL_MS = 30_000
 
-let anomaliesCache: AnomaliesCache | null = null
-let anomaliesInFlight: Promise<StaffJourneyAnomalyListItemDto[]> | null = null
+type AnomaliesCacheItem = {
+  at: number
+  data: PortalPagedResult<StaffJourneyAnomalyListItemDto>
+}
 
-async function getJourneyAnomaliesCached(opts?: { force?: boolean; ttlMs?: number }): Promise<StaffJourneyAnomalyListItemDto[]> {
-  const force = opts?.force ?? false
-  const ttlMs = opts?.ttlMs ?? ANOMALIES_TTL_MS
+const anomaliesCacheByKey = new Map<string, AnomaliesCacheItem>()
+const anomaliesInFlightByKey = new Map<string, Promise<PortalPagedResult<StaffJourneyAnomalyListItemDto>>>()
 
-  if (!force && anomaliesCache && Date.now() - anomaliesCache.at <= ttlMs) return anomaliesCache.items
-  if (!force && anomaliesInFlight) return anomaliesInFlight
+function anomaliesKey(page: number, pageSize: number) {
+  return `${page}|${pageSize}`
+}
 
-  anomaliesInFlight = listStaffJourneyAnomalies()
-    .then((items) => {
-      anomaliesCache = { at: Date.now(), items }
-      return items
+async function getJourneyAnomaliesCached(opts: {
+  page: number
+  pageSize: number
+  force?: boolean
+  ttlMs?: number
+}): Promise<PortalPagedResult<StaffJourneyAnomalyListItemDto>> {
+  const page = opts.page
+  const pageSize = opts.pageSize
+  const force = opts.force ?? false
+  const ttlMs = opts.ttlMs ?? ANOMALIES_TTL_MS
+
+  const key = anomaliesKey(page, pageSize)
+  const cached = anomaliesCacheByKey.get(key)
+
+  if (!force && cached && Date.now() - cached.at <= ttlMs) return cached.data
+  if (!force) {
+    const inFlight = anomaliesInFlightByKey.get(key)
+    if (inFlight) return inFlight
+  }
+
+  const promise = listStaffJourneyAnomalies({ page, pageSize })
+    .then((data) => {
+      anomaliesCacheByKey.set(key, { at: Date.now(), data })
+      return data
     })
     .finally(() => {
-      anomaliesInFlight = null
+      anomaliesInFlightByKey.delete(key)
     })
 
-  return anomaliesInFlight
+  anomaliesInFlightByKey.set(key, promise)
+  return promise
 }
 
 function reasonLabelVi(reason: StaffJourneyAnomalyListItemDto['anomalyReason']): string {
@@ -66,7 +85,7 @@ type JourneyAnomalyDetailsDialogProps = {
   onClose: () => void
   contact: StaffTravelerDetailDto | null | undefined
   contactLoading: boolean
-  onLoadContact: (travelerId: string) => void
+  onLoadContact: (journeyId: string, travelerId: string) => void
 }
 
 function JourneyAnomalyDetailsDialog({
@@ -98,6 +117,7 @@ function JourneyAnomalyDetailsDialog({
   if (!open || !row) return null
 
   const tid = row.travelerId ?? ''
+  const jid = row.id
 
   return createPortal(
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
@@ -206,7 +226,7 @@ function JourneyAnomalyDetailsDialog({
               <button
                 type="button"
                 disabled={!tid || contactLoading || contact !== undefined}
-                onClick={() => onLoadContact(tid)}
+                onClick={() => onLoadContact(jid, tid)}
                 className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-50 transition-colors"
               >
                 {contactLoading ? 'Đang tải…' : contact !== undefined ? 'Đã tải' : 'Tải liên hệ'}
@@ -233,54 +253,63 @@ function JourneyAnomalyDetailsDialog({
 export default function StaffJourneyAnomaliesPage() {
   const { setSidebarCollapsed } = useOutletContext<StaffOutletContext>()
 
-  const [hasFreshCache] = useState(() => Boolean(anomaliesCache && Date.now() - anomaliesCache.at <= ANOMALIES_TTL_MS))
-  const [loading, setLoading] = useState(() => !hasFreshCache)
-  const [rows, setRows] = useState<StaffJourneyAnomalyListItemDto[]>(() => (hasFreshCache && anomaliesCache ? anomaliesCache.items : []))
+  const [page, setPage] = useState(1)
 
-  const [contactByTravelerId, setContactByTravelerId] = useState<Record<string, StaffTravelerDetailDto | null>>({})
-  const [contactLoading, setContactLoading] = useState<Record<string, boolean>>({})
+  const [loading, setLoading] = useState(() => {
+    const cached = anomaliesCacheByKey.get(anomaliesKey(1, PAGE_SIZE))
+    return !(cached && Date.now() - cached.at <= ANOMALIES_TTL_MS)
+  })
+  const [data, setData] = useState<PortalPagedResult<StaffJourneyAnomalyListItemDto> | null>(() => {
+    const cached = anomaliesCacheByKey.get(anomaliesKey(1, PAGE_SIZE))
+    return cached && Date.now() - cached.at <= ANOMALIES_TTL_MS ? cached.data : null
+  })
+
+  const [contactByJourneyId, setContactByJourneyId] = useState<Record<string, StaffTravelerDetailDto | null>>({})
+  const [contactLoadingByJourneyId, setContactLoadingByJourneyId] = useState<Record<string, boolean>>({})
 
   const [detailsRow, setDetailsRow] = useState<StaffJourneyAnomalyListItemDto | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
 
-  const load = useCallback(async (opts?: { force?: boolean; silent?: boolean }) => {
+  const load = useCallback(async (opts?: { force?: boolean; silent?: boolean; page?: number }) => {
+    const p = opts?.page ?? page
+    const key = anomaliesKey(p, PAGE_SIZE)
+    const cached = anomaliesCacheByKey.get(key)
+    const isFresh = Boolean(cached && Date.now() - cached.at <= ANOMALIES_TTL_MS)
+
     if (!opts?.silent) setLoading(true)
     try {
-      const data = await getJourneyAnomaliesCached({ force: opts?.force })
-      setRows(data)
+      const res = await getJourneyAnomaliesCached({ page: p, pageSize: PAGE_SIZE, force: opts?.force })
+      setData(res)
     } catch (e) {
       toast.error(getApiErrorMessage(e, 'Không tải được danh sách hành trình bất thường'))
-      setRows([])
+      if (!isFresh) setData(null)
     } finally {
       if (!opts?.silent) setLoading(false)
     }
-  }, [])
+  }, [page])
 
   useEffect(() => {
+    const key = anomaliesKey(page, PAGE_SIZE)
+    const cached = anomaliesCacheByKey.get(key)
+    const isFresh = Boolean(cached && Date.now() - cached.at <= ANOMALIES_TTL_MS)
+
+    if (cached && isFresh) setData(cached.data)
+    setLoading(!isFresh)
+
     const t = window.setTimeout(() => {
-      void load({ silent: hasFreshCache })
+      void load({ page, silent: isFresh })
     }, 0)
     return () => window.clearTimeout(t)
-  }, [load, hasFreshCache])
+  }, [load, page])
 
-  const total = rows.length
+  const items = data?.items ?? []
+  const totalCount = data?.totalCount ?? 0
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
-  const sortedRows = useMemo(() => {
-    // Prioritize stalled first, then offline, then newest startedAt
-    const prepared = rows.map((r) => ({
-      r,
-      reasonScore: r.anomalyReason === 'stalled' ? 2 : r.anomalyReason === 'offline' ? 1 : 0,
-      startedAtTs: r.startedAt ? Date.parse(r.startedAt) : 0,
-    }))
-
-    prepared.sort((a, b) => {
-      const ds = b.reasonScore - a.reasonScore
-      if (ds !== 0) return ds
-      return b.startedAtTs - a.startedAtTs
-    })
-
-    return prepared.map((x) => x.r)
-  }, [rows])
+  useEffect(() => {
+    if (!data) return
+    if (page > totalPages) setPage(totalPages)
+  }, [data, page, totalPages])
 
   const openDetails = useCallback((row: StaffJourneyAnomalyListItemDto) => {
     setDetailsRow(row)
@@ -292,19 +321,19 @@ export default function StaffJourneyAnomaliesPage() {
     setDetailsRow(null)
   }, [])
 
-  async function loadContact(travelerId: string) {
-    if (!travelerId) return
-    if (contactByTravelerId[travelerId] !== undefined) return
+  async function loadContact(journeyId: string, travelerId: string) {
+    if (!journeyId || !travelerId) return
+    if (contactByJourneyId[journeyId] !== undefined) return
 
-    setContactLoading((m) => ({ ...m, [travelerId]: true }))
+    setContactLoadingByJourneyId((m) => ({ ...m, [journeyId]: true }))
     try {
       const detail = await getStaffTraveler(travelerId)
-      setContactByTravelerId((m) => ({ ...m, [travelerId]: detail }))
+      setContactByJourneyId((m) => ({ ...m, [journeyId]: detail }))
     } catch (e) {
       toast.error(getApiErrorMessage(e, 'Không tải được thông tin liên hệ du khách'))
-      setContactByTravelerId((m) => ({ ...m, [travelerId]: null }))
+      setContactByJourneyId((m) => ({ ...m, [journeyId]: null }))
     } finally {
-      setContactLoading((m) => ({ ...m, [travelerId]: false }))
+      setContactLoadingByJourneyId((m) => ({ ...m, [journeyId]: false }))
     }
   }
 
@@ -344,18 +373,18 @@ export default function StaffJourneyAnomaliesPage() {
           open={detailsOpen}
           row={detailsRow}
           onClose={closeDetails}
-          contact={detailsRow?.travelerId ? contactByTravelerId[detailsRow.travelerId] : undefined}
-          contactLoading={detailsRow?.travelerId ? (contactLoading[detailsRow.travelerId] ?? false) : false}
-          onLoadContact={(travelerId) => void loadContact(travelerId)}
+          contact={detailsRow ? contactByJourneyId[detailsRow.id] : undefined}
+          contactLoading={detailsRow ? (contactLoadingByJourneyId[detailsRow.id] ?? false) : false}
+          onLoadContact={(journeyId, travelerId) => void loadContact(journeyId, travelerId)}
         />
 
         <div className="rounded-2xl bg-white/95 border border-stone-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex items-center justify-between gap-3">
           <div className="text-sm text-stone-700">
-            {loading ? 'Đang tải…' : total > 0 ? `Có ${total} hành trình cần ưu tiên` : 'Không có hành trình bất thường'}
+            {loading ? 'Đang tải…' : totalCount > 0 ? `Có ${totalCount} hành trình cần ưu tiên` : 'Không có hành trình bất thường'}
           </div>
           <button
             type="button"
-            onClick={() => void load({ force: true })}
+            onClick={() => void load({ force: true, page })}
             disabled={loading}
             className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-50 transition-colors"
           >
@@ -396,7 +425,7 @@ export default function StaffJourneyAnomaliesPage() {
                   </tr>
                 )}
 
-                {!loading && sortedRows.length === 0 && (
+                {!loading && items.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-4 py-10 text-center text-stone-500">
                       Không có bất thường
@@ -405,7 +434,7 @@ export default function StaffJourneyAnomaliesPage() {
                 )}
 
                 {!loading &&
-                  sortedRows.map((row, i) => {
+                  items.map((row, i) => {
                     return (
                       <tr key={row.id} className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/40'}>
                         <td className="px-4 py-3">
@@ -448,6 +477,47 @@ export default function StaffJourneyAnomaliesPage() {
                   })}
               </tbody>
             </table>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 px-4 py-4 border-t border-stone-100 bg-white">
+            <div className="text-xs text-stone-500">PageSize: {PAGE_SIZE}</div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="px-3.5 py-2 text-sm rounded-xl border border-stone-200 bg-white text-stone-700 font-medium shadow-sm hover:bg-stone-50 hover:border-stone-300 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                onClick={() => setPage(1)}
+                disabled={loading || page <= 1}
+              >
+                « Đầu
+              </button>
+              <button
+                type="button"
+                className="px-3.5 py-2 text-sm rounded-xl border border-stone-200 bg-white text-stone-700 font-medium shadow-sm hover:bg-stone-50 hover:border-stone-300 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={loading || page <= 1}
+              >
+                ‹ Trước
+              </button>
+              <div className="text-sm text-stone-600 px-2">
+                <span className="font-semibold text-stone-900">{page}</span> / {totalPages}
+              </div>
+              <button
+                type="button"
+                className="px-3.5 py-2 text-sm rounded-xl border border-stone-200 bg-white text-stone-700 font-medium shadow-sm hover:bg-stone-50 hover:border-stone-300 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={loading || page >= totalPages}
+              >
+                Sau ›
+              </button>
+              <button
+                type="button"
+                className="px-3.5 py-2 text-sm rounded-xl border border-stone-200 bg-white text-stone-700 font-medium shadow-sm hover:bg-stone-50 hover:border-stone-300 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                onClick={() => setPage(totalPages)}
+                disabled={loading || page >= totalPages}
+              >
+                Cuối »
+              </button>
+            </div>
           </div>
         </section>
       </main>
