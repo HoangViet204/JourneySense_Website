@@ -112,7 +112,7 @@ export default function StaffExperienceDetailPage() {
   const [avgDraft, setAvgDraft] = useState('')
   const [avgSaving, setAvgSaving] = useState(false)
 
-  const previewPageSize = 20
+  const previewPageSize = 5
   const [previewPage, setPreviewPage] = useState(1)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewResult, setPreviewResult] = useState<StaffExperienceInProgressJourneysResponse | null>(null)
@@ -480,27 +480,27 @@ export default function StaffExperienceDetailPage() {
                       Cập nhật vị trí (lat/lng)
                     </h3>
                   </div>
-                  <div className="flex flex-wrap items-end gap-2">
-                    <label className="text-xs font-semibold text-stone-600">
-                      Vĩ độ
+                  <div className="flex flex-wrap items-center justify-end gap-3">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-stone-600">
+                      <span className="shrink-0">Vĩ độ</span>
                       <input
                         type="number"
                         step="0.000001"
                         inputMode="decimal"
-                        className="ml-2 w-44 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
+                        className="h-10 w-44 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
                         placeholder="10.123456"
                         value={latDraft}
                         onChange={(e) => setLatDraft(e.target.value)}
                         disabled={locationSaving}
                       />
                     </label>
-                    <label className="text-xs font-semibold text-stone-600">
-                      Kinh độ
+                    <label className="flex items-center gap-2 text-xs font-semibold text-stone-600">
+                      <span className="shrink-0">Kinh độ</span>
                       <input
                         type="number"
                         step="0.000001"
                         inputMode="decimal"
-                        className="ml-2 w-44 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
+                        className="h-10 w-44 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
                         placeholder="106.123456"
                         value={lngDraft}
                         onChange={(e) => setLngDraft(e.target.value)}
@@ -509,7 +509,7 @@ export default function StaffExperienceDetailPage() {
                     </label>
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center rounded-xl bg-[#c5a070] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f] disabled:opacity-60"
+                      className="inline-flex h-10 items-center justify-center rounded-xl bg-[#c5a070] px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f] disabled:opacity-60"
                       disabled={locationSaving}
                       onClick={() => {
                         if (!experienceId) return
@@ -572,11 +572,11 @@ export default function StaffExperienceDetailPage() {
                     </h3>
                   </div>
 
-                  <div className="flex flex-wrap items-end gap-2">
-                    <label className="text-xs font-semibold text-stone-600">
-                      Trạng thái
+                  <div className="flex flex-wrap items-center justify-end gap-3">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-stone-600">
+                      <span className="shrink-0">Trạng thái</span>
                       <select
-                        className="ml-2 w-44 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
+                        className="h-10 w-44 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
                         value={statusDraft}
                         onChange={(e) => setStatusDraft(e.target.value === 'inactive' ? 'inactive' : 'active')}
                         disabled={statusSaving}
@@ -589,7 +589,9 @@ export default function StaffExperienceDetailPage() {
                     {(() => {
                       const ui = getExperienceStatusUi(statusDraft)
                       return (
-                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ${ui.className}`}>
+                        <span
+                          className={`inline-flex whitespace-nowrap px-3 py-1 rounded-full text-xs font-semibold ring-1 ${ui.className}`}
+                        >
                           {ui.label}
                         </span>
                       )
@@ -597,7 +599,7 @@ export default function StaffExperienceDetailPage() {
 
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center rounded-xl bg-[#c5a070] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f] disabled:opacity-60"
+                      className="inline-flex h-10 items-center justify-center rounded-xl bg-[#c5a070] px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f] disabled:opacity-60"
                       disabled={statusSaving}
                       onClick={() => {
                         if (!experienceId) return
