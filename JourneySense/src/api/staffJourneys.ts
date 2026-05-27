@@ -57,3 +57,11 @@ export async function listStaffJourneyAnomalies(params?: {
 
   return { items: [], page, pageSize, totalCount: 0 }
 }
+
+export async function cancelStaffJourney(journeyId: string): Promise<void> {
+  await api.post(`/api/staff/journeys/${encodeURIComponent(journeyId)}/cancel-by-staff`)
+}
+
+export async function clearStaffJourneyAnomaly(journeyId: string): Promise<void> {
+  await api.post(`/api/staff/journeys/${encodeURIComponent(journeyId)}/anomaly/clear`)
+}

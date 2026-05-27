@@ -3,6 +3,7 @@ import { Link, useLocation, useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
 import { listStaffJourneys } from '../../api/staffJourneys'
+import StatCards from '../../components/StatCards'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
 import type { PortalPagedResult, StaffJourneyListItemDto } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
@@ -50,6 +51,7 @@ export default function StaffJourneysPage() {
   const [data, setData] = useState<PortalPagedResult<StaffJourneyListItemDto> | null>(null)
   const [loading, setLoading] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+  const [summary, setSummary] = useState<{ total: number; planning: number; inProgress: number; completed: number; cancelled: number } | null>(null)
 
   useEffect(() => {
     if (loading) sawLoading.current = true
@@ -75,10 +77,36 @@ export default function StaffJourneysPage() {
     }
   }, [page, status])
 
+  const loadSummary = useCallback(async () => {
+    try {
+      const [allRes, planningRes, inProgressRes, completedRes, cancelledRes] = await Promise.all([
+        listStaffJourneys({ page: 1, pageSize: 1 }),
+        listStaffJourneys({ page: 1, pageSize: 1, status: 'Planning' }),
+        listStaffJourneys({ page: 1, pageSize: 1, status: 'InProgress' }),
+        listStaffJourneys({ page: 1, pageSize: 1, status: 'Completed' }),
+        listStaffJourneys({ page: 1, pageSize: 1, status: 'Cancelled' }),
+      ])
+
+      setSummary({
+        total: allRes.totalCount ?? 0,
+        planning: planningRes.totalCount ?? 0,
+        inProgress: inProgressRes.totalCount ?? 0,
+        completed: completedRes.totalCount ?? 0,
+        cancelled: cancelledRes.totalCount ?? 0,
+      })
+    } catch {
+      setSummary(null)
+    }
+  }, [])
+
   useEffect(() => {
     if (!hydrated) return
     void load()
   }, [hydrated, load])
+
+  useEffect(() => {
+    void loadSummary()
+  }, [loadSummary])
 
   useEffect(() => {
     if (!hydrated) return
@@ -168,6 +196,19 @@ export default function StaffJourneysPage() {
         }}
         className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px] w-full mx-auto"
       >
+        <section>
+          <StatCards
+            items={[
+              { label: 'Tổng chuyến', value: (summary?.total ?? 0).toLocaleString('vi-VN'), sub: 'Toàn bộ hành trình', tone: 'amber' },
+              { label: 'Lên kế hoạch', value: (summary?.planning ?? 0).toLocaleString('vi-VN'), tone: 'stone' },
+              { label: 'Đang diễn ra', value: (summary?.inProgress ?? 0).toLocaleString('vi-VN'), tone: 'sky' },
+              { label: 'Hoàn thành', value: (summary?.completed ?? 0).toLocaleString('vi-VN'), tone: 'emerald' },
+              { label: 'Đã hủy', value: (summary?.cancelled ?? 0).toLocaleString('vi-VN'), tone: 'rose' },
+            ]}
+            className="grid-cols-1 sm:grid-cols-2 xl:grid-cols-5"
+          />
+        </section>
+
         <div className="rounded-2xl bg-white/95 border border-stone-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-[220px]">

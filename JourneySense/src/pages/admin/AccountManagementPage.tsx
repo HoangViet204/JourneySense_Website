@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
 import { useConfirmDialog } from '../../components/ConfirmDialog'
+import StatCards from '../../components/StatCards'
 import { fetchAdminUsers } from '../../actions/adminUserActions'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { getApiErrorMessage } from '../../utils/apiMessage'
@@ -78,6 +79,7 @@ export default function AccountManagementPage() {
   const [staffEmail, setStaffEmail] = useState('')
   const [staffPassword, setStaffPassword] = useState('')
   const [staffBusy, setStaffBusy] = useState(false)
+  const [summary, setSummary] = useState<{ total: number; active: number; suspended: number; traveler: number; staff: number; admin: number } | null>(null)
 
   const { confirm, dialog } = useConfirmDialog()
 
@@ -127,6 +129,38 @@ export default function AccountManagementPage() {
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
+  useEffect(() => {
+    let active = true
+    void (async () => {
+      try {
+        const [allRes, activeRes, suspendedRes, travelerRes, staffRes, adminRes] = await Promise.all([
+          api.get('/api/admin/users', { params: { page: 1, pageSize: 1 } }),
+          api.get('/api/admin/users', { params: { page: 1, pageSize: 1, status: 'active' } }),
+          api.get('/api/admin/users', { params: { page: 1, pageSize: 1, status: 'suspended' } }),
+          api.get('/api/admin/users', { params: { page: 1, pageSize: 1, role: 'traveler' } }),
+          api.get('/api/admin/users', { params: { page: 1, pageSize: 1, role: 'staff' } }),
+          api.get('/api/admin/users', { params: { page: 1, pageSize: 1, role: 'admin' } }),
+        ])
+
+        if (!active) return
+        setSummary({
+          total: allRes.data.totalCount ?? 0,
+          active: activeRes.data.totalCount ?? 0,
+          suspended: suspendedRes.data.totalCount ?? 0,
+          traveler: travelerRes.data.totalCount ?? 0,
+          staff: staffRes.data.totalCount ?? 0,
+          admin: adminRes.data.totalCount ?? 0,
+        })
+      } catch {
+        if (active) setSummary(null)
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
 
   const createStaff = async () => {
     const email = staffEmail.trim()
@@ -167,6 +201,20 @@ export default function AccountManagementPage() {
         className={shell}
       >
         <div className="mx-auto w-full max-w-6xl space-y-8">
+        <section>
+          <StatCards
+            items={[
+              { label: 'Tổng tài khoản', value: (summary?.total ?? 0).toLocaleString('vi-VN'), sub: 'Toàn bộ dữ liệu', tone: 'amber' },
+              { label: 'Hoạt động', value: (summary?.active ?? 0).toLocaleString('vi-VN'), tone: 'emerald' },
+              { label: 'Đã đình chỉ', value: (summary?.suspended ?? 0).toLocaleString('vi-VN'), tone: 'rose' },
+              { label: 'Du khách', value: (summary?.traveler ?? 0).toLocaleString('vi-VN'), tone: 'sky' },
+              { label: 'Nhân viên', value: (summary?.staff ?? 0).toLocaleString('vi-VN'), tone: 'violet' },
+              { label: 'Quản trị', value: (summary?.admin ?? 0).toLocaleString('vi-VN'), tone: 'stone' },
+            ]}
+            className="grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
+          />
+        </section>
+
         <header>
           <h1 className="font-['Cormorant_Garamond',serif] text-2xl font-semibold text-stone-900 sm:text-3xl">
             Tài khoản

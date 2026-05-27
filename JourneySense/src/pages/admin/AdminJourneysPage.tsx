@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
+import StatCards from '../../components/StatCards'
 import type { AdminJourneyListItemDto, PortalPagedResult } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { displayJourneyStatus, formatDate } from '../../utils/format'
@@ -77,6 +78,7 @@ export default function AdminJourneysPage() {
   const [status, setStatus] = useState<JourneyStatusFilter>('')
   const [anomalyOnly, setAnomalyOnly] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+  const [summary, setSummary] = useState<{ total: number; planning: number; inProgress: number; completed: number; cancelled: number } | null>(null)
 
   useEffect(() => {
     if (loading) sawLoading.current = true
@@ -105,10 +107,36 @@ export default function AdminJourneysPage() {
     }
   }, [page, status, anomalyOnly])
 
+  const loadSummary = useCallback(async () => {
+    try {
+      const [allRes, planningRes, inProgressRes, completedRes, cancelledRes] = await Promise.all([
+        api.get<PortalPagedResult<AdminJourneyListItemDto>>('/api/admin/journeys', { params: { page: 1, pageSize: 1 } }),
+        api.get<PortalPagedResult<AdminJourneyListItemDto>>('/api/admin/journeys', { params: { page: 1, pageSize: 1, status: 'Planning' } }),
+        api.get<PortalPagedResult<AdminJourneyListItemDto>>('/api/admin/journeys', { params: { page: 1, pageSize: 1, status: 'InProgress' } }),
+        api.get<PortalPagedResult<AdminJourneyListItemDto>>('/api/admin/journeys', { params: { page: 1, pageSize: 1, status: 'Completed' } }),
+        api.get<PortalPagedResult<AdminJourneyListItemDto>>('/api/admin/journeys', { params: { page: 1, pageSize: 1, status: 'Cancelled' } }),
+      ])
+
+      setSummary({
+        total: allRes.data.totalCount ?? 0,
+        planning: planningRes.data.totalCount ?? 0,
+        inProgress: inProgressRes.data.totalCount ?? 0,
+        completed: completedRes.data.totalCount ?? 0,
+        cancelled: cancelledRes.data.totalCount ?? 0,
+      })
+    } catch {
+      setSummary(null)
+    }
+  }, [])
+
   useEffect(() => {
     if (!hydrated) return
     void load()
   }, [hydrated, load])
+
+  useEffect(() => {
+    void loadSummary()
+  }, [loadSummary])
 
   useEffect(() => {
     if (!hydrated) return
@@ -166,6 +194,19 @@ export default function AdminJourneysPage() {
       className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] p-4 sm:p-6 lg:p-8"
     >
       <div className="mx-auto w-full max-w-6xl space-y-8">
+        <section>
+          <StatCards
+            items={[
+              { label: 'Tổng chuyến', value: (summary?.total ?? 0).toLocaleString('vi-VN'), sub: 'Toàn bộ hành trình', tone: 'amber' },
+              { label: 'Lên kế hoạch', value: (summary?.planning ?? 0).toLocaleString('vi-VN'), tone: 'stone' },
+              { label: 'Đang diễn ra', value: (summary?.inProgress ?? 0).toLocaleString('vi-VN'), tone: 'sky' },
+              { label: 'Hoàn thành', value: (summary?.completed ?? 0).toLocaleString('vi-VN'), tone: 'emerald' },
+              { label: 'Đã hủy', value: (summary?.cancelled ?? 0).toLocaleString('vi-VN'), tone: 'rose' },
+            ]}
+            className="grid-cols-1 sm:grid-cols-2 xl:grid-cols-5"
+          />
+        </section>
+
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="font-['Cormorant_Garamond',serif] text-2xl font-semibold text-stone-900 sm:text-3xl">Hành trình</h1>

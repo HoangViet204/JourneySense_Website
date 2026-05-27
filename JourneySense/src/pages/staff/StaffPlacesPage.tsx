@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import api from '../../api/axios'
 import { useConfirmDialog } from '../../components/ConfirmDialog'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
+import StatCards from '../../components/StatCards'
 import { TIME_OF_DAY_OPTIONS } from '../../constants/microExperienceEnums'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
 import type { CategoryResponseDto, MicroExperienceListItemResponse } from '../../types/portal'
@@ -135,6 +136,15 @@ export default function StaffPlacesPage() {
 
   const totalCount = allItems.length
   const totalPagesComputed = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const summaryCards = useMemo(() => {
+    const activeCount = allItems.filter((item) => (item.status ?? '').trim().toLowerCase() === 'active').length
+    const inactiveCount = allItems.filter((item) => (item.status ?? '').trim().toLowerCase() === 'inactive').length
+    return [
+      { label: 'Tổng địa điểm', value: totalCount.toLocaleString('vi-VN'), sub: 'Toàn bộ dữ liệu', tone: 'amber' as const },
+      { label: 'Hoạt động', value: activeCount.toLocaleString('vi-VN'), sub: 'Đang mở', tone: 'emerald' as const },
+      { label: 'Không hoạt động', value: inactiveCount.toLocaleString('vi-VN'), sub: 'Đã tắt', tone: 'rose' as const },
+    ]
+  }, [allItems, totalCount])
 
   useEffect(() => {
     if (page > totalPagesComputed) setPage(totalPagesComputed)
@@ -244,6 +254,10 @@ export default function StaffPlacesPage() {
       </header>
 
       <main className="flex-1 overflow-auto p-4 sm:p-6 space-y-5">
+        <section>
+          <StatCards items={summaryCards} className="grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" />
+        </section>
+
         {/* Embedding */}
         <section className="rounded-2xl border border-stone-200/80 bg-white p-5 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
           <h2 className="mb-4 font-['Cormorant_Garamond',serif] text-lg font-semibold text-stone-900">Embedding</h2>

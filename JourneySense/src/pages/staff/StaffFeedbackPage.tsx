@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
+import StatCards from '../../components/StatCards'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
 import type { PortalPagedResult, StaffFeedbackListItemDto, StaffJourneyFeedbackListItemDto } from '../../types/portal'
 import api from '../../api/axios'
@@ -32,6 +33,8 @@ export default function StaffFeedbackPage() {
   const [wpTotal, setWpTotal] = useState(0)
 
   const [loading, setLoading] = useState(false)
+  const [summaryLoading, setSummaryLoading] = useState(true)
+  const [summary, setSummary] = useState<{ total: number; journeyTotal: number; waypointTotal: number; pending: number; approved: number; rejected: number } | null>(null)
 
   const [hydrated, setHydrated] = useState(false)
 
@@ -76,10 +79,55 @@ export default function StaffFeedbackPage() {
     }
   }, [tripPage, wpPage, modFilter])
 
+  const loadSummary = useCallback(async () => {
+    setSummaryLoading(true)
+    try {
+      const [tripAll, wpAll, tripPending, wpPending, tripApproved, wpApproved, tripRejected, wpRejected] = await Promise.all([
+        api.get<PortalPagedResult<StaffJourneyFeedbackListItemDto>>('/api/staff/feedbacks/journeys', { params: { page: 1, pageSize: 1 } }),
+        api.get<PortalPagedResult<StaffFeedbackListItemDto>>('/api/staff/feedbacks', { params: { page: 1, pageSize: 1 } }),
+        api.get<PortalPagedResult<StaffJourneyFeedbackListItemDto>>('/api/staff/feedbacks/journeys', {
+          params: { page: 1, pageSize: 1, moderationStatus: 'pending' },
+        }),
+        api.get<PortalPagedResult<StaffFeedbackListItemDto>>('/api/staff/feedbacks', {
+          params: { page: 1, pageSize: 1, moderationStatus: 'pending' },
+        }),
+        api.get<PortalPagedResult<StaffJourneyFeedbackListItemDto>>('/api/staff/feedbacks/journeys', {
+          params: { page: 1, pageSize: 1, moderationStatus: 'approved' },
+        }),
+        api.get<PortalPagedResult<StaffFeedbackListItemDto>>('/api/staff/feedbacks', {
+          params: { page: 1, pageSize: 1, moderationStatus: 'approved' },
+        }),
+        api.get<PortalPagedResult<StaffJourneyFeedbackListItemDto>>('/api/staff/feedbacks/journeys', {
+          params: { page: 1, pageSize: 1, moderationStatus: 'rejected' },
+        }),
+        api.get<PortalPagedResult<StaffFeedbackListItemDto>>('/api/staff/feedbacks', {
+          params: { page: 1, pageSize: 1, moderationStatus: 'rejected' },
+        }),
+      ])
+
+      setSummary({
+        total: (tripAll.data.totalCount ?? 0) + (wpAll.data.totalCount ?? 0),
+        journeyTotal: tripAll.data.totalCount ?? 0,
+        waypointTotal: wpAll.data.totalCount ?? 0,
+        pending: (tripPending.data.totalCount ?? 0) + (wpPending.data.totalCount ?? 0),
+        approved: (tripApproved.data.totalCount ?? 0) + (wpApproved.data.totalCount ?? 0),
+        rejected: (tripRejected.data.totalCount ?? 0) + (wpRejected.data.totalCount ?? 0),
+      })
+    } catch {
+      setSummary(null)
+    } finally {
+      setSummaryLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (!hydrated) return
     void load()
   }, [hydrated, load])
+
+  useEffect(() => {
+    void loadSummary()
+  }, [loadSummary])
 
   useEffect(() => {
     if (!hydrated) return
@@ -162,6 +210,20 @@ export default function StaffFeedbackPage() {
         }}
         className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 space-y-8 max-w-[1400px] w-full mx-auto"
       >
+        <section>
+          <StatCards
+            items={[
+              { label: 'Tổng phản hồi', value: summaryLoading ? '…' : (summary?.total ?? 0).toLocaleString('vi-VN'), sub: 'Gộp cả 2 loại', tone: 'amber' },
+              { label: 'Phản hồi cả chuyến', value: summaryLoading ? '…' : (summary?.journeyTotal ?? 0).toLocaleString('vi-VN'), tone: 'sky' },
+              { label: 'Phản hồi điểm dừng', value: summaryLoading ? '…' : (summary?.waypointTotal ?? 0).toLocaleString('vi-VN'), tone: 'violet' },
+              { label: 'Chờ duyệt', value: summaryLoading ? '…' : (summary?.pending ?? 0).toLocaleString('vi-VN'), tone: 'rose' },
+              { label: 'Đã duyệt', value: summaryLoading ? '…' : (summary?.approved ?? 0).toLocaleString('vi-VN'), tone: 'emerald' },
+              { label: 'Đã từ chối', value: summaryLoading ? '…' : (summary?.rejected ?? 0).toLocaleString('vi-VN'), tone: 'stone' },
+            ]}
+            className="grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
+          />
+        </section>
+
         <div className="rounded-2xl bg-white/95 border border-stone-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 sm:p-5">
           <div className="flex-1 min-w-[200px]">
             <label htmlFor="mod-filter" className="sr-only">
