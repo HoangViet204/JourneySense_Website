@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQueryPage } from '../../hooks/useQueryPage'
 import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
@@ -72,7 +73,7 @@ export default function AdminJourneysPage() {
   const sawLoading = useRef(false)
   const didInit = useRef(false)
 
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useQueryPage(1, 'page')
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<PortalPagedResult<AdminJourneyListItemDto> | null>(null)
   const [status, setStatus] = useState<JourneyStatusFilter>('')

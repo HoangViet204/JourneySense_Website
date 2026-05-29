@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useQueryPage } from '../../hooks/useQueryPage'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import type { ExperienceReportListItemDto } from '../../types/portal'
@@ -27,7 +28,7 @@ function reporterText(row: ExperienceReportListItemDto): string {
 
 export default function ExperienceReportsListBody(props: { basePath: string; canDismiss?: boolean }) {
   const { basePath, canDismiss = true } = props
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useQueryPage(1, 'page')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ totalCount: number; items: ExperienceReportListItemDto[] } | null>(null)
 
@@ -56,7 +57,7 @@ export default function ExperienceReportsListBody(props: { basePath: string; can
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages)
-  }, [page, totalPages])
+  }, [page, totalPages, setPage])
 
   const dismiss = async (row: ExperienceReportListItemDto) => {
     const ok = await confirm({

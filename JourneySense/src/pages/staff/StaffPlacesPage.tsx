@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useQueryPage } from '../../hooks/useQueryPage'
 import { Link, useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
@@ -38,7 +39,7 @@ export default function StaffPlacesPage() {
   const [filterMood, setFilterMood] = useState('')
   const [filterTimeOfDay, setFilterTimeOfDay] = useState('')
   const [applied, setApplied] = useState(initialApplied)
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useQueryPage(1, 'page')
   const [loading, setLoading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [embedLoading, setEmbedLoading] = useState(false)
@@ -132,7 +133,7 @@ export default function StaffPlacesPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [applied])
+  }, [applied, setPage])
 
   const totalCount = allItems.length
   const totalPagesComputed = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))

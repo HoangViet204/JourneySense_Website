@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useQueryPage } from '../../hooks/useQueryPage'
 import { Link, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
@@ -42,7 +43,7 @@ export default function AdminPlacesPage() {
   const [filterCategoryId, setFilterCategoryId] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [applied, setApplied] = useState(initialApplied)
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useQueryPage(1, 'page')
   const [loading, setLoading] = useState(false)
   const [embedLoading, setEmbedLoading] = useState(false)
   const [hydrated, setHydrated] = useState(false)

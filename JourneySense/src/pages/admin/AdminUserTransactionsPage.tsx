@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useQueryPage } from '../../hooks/useQueryPage'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
@@ -65,7 +66,7 @@ export default function AdminUserTransactionsPage() {
 
   const [userLabel, setUserLabel] = useState('')
 
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useQueryPage(1, 'page')
   const [source, setSource] = useState<SourceFilter>('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<PortalPagedResult<TransactionHistoryItemDto> | null>(null)

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQueryPage } from '../../hooks/useQueryPage'
 import { Link, useLocation, useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
@@ -24,11 +25,11 @@ export default function StaffFeedbackPage() {
 
   const [modFilter, setModFilter] = useState('')
 
-  const [tripPage, setTripPage] = useState(1)
+  const [tripPage, setTripPage] = useQueryPage(1, 'tripPage')
   const [tripItems, setTripItems] = useState<StaffJourneyFeedbackListItemDto[]>([])
   const [tripTotal, setTripTotal] = useState(0)
 
-  const [wpPage, setWpPage] = useState(1)
+  const [wpPage, setWpPage] = useQueryPage(1, 'wpPage')
   const [wpItems, setWpItems] = useState<StaffFeedbackListItemDto[]>([])
   const [wpTotal, setWpTotal] = useState(0)
 
@@ -134,7 +135,7 @@ export default function StaffFeedbackPage() {
     if (!didInit.current) return
     setTripPage(1)
     setWpPage(1)
-  }, [hydrated, modFilter])
+  }, [hydrated, modFilter, setTripPage, setWpPage])
 
   useEffect(() => {
     if (!hydrated) return

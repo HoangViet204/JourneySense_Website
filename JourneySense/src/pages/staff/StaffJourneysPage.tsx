@@ -326,7 +326,7 @@ export default function StaffJourneysPage() {
           </div>
 
           <div className="flex items-center justify-between gap-3 px-4 py-4 border-t border-stone-100 bg-white">
-            <div className="text-xs text-stone-500">PageSize: {PAGE_SIZE}</div>
+            <div className="text-xs text-stone-500">Số mỗi trang: {PAGE_SIZE}</div>
             <div className="flex items-center gap-2">
               <button type="button" className={pagerBtn} onClick={() => setPage(1)} disabled={loading || page <= 1}>
                 « Đầu

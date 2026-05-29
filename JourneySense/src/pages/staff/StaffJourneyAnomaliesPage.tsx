@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -96,7 +97,7 @@ function JourneyAnomalyDetailsDialog({
         <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-stone-100 bg-[#f5f0e8]/60">
           <div className="min-w-0">
             <div className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold">Chi tiết</div>
-            <div className="text-base font-semibold text-stone-900 truncate">Hành trình {row.id}</div>
+            <div className="text-base font-semibold text-stone-900 truncate">Hành trình</div>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span
                 className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${reasonBadgeClass(row.anomalyReason)}`}
@@ -223,7 +224,9 @@ export default function StaffJourneyAnomaliesPage() {
 
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
-  const [page, setPage] = useState(1)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialPage = parseInt(searchParams.get('page') ?? '1', 10) || 1
+  const [page, setPage] = useState(initialPage)
 
   const [loading, setLoading] = useState(false)
   const [allItems, setAllItems] = useState<StaffJourneyAnomalyListItemDto[]>([])
@@ -263,6 +266,14 @@ export default function StaffJourneyAnomaliesPage() {
     if (page > totalPages) setPage(totalPages)
   }, [page, totalPages])
 
+  // keep `?page=` in the URL so reload / back preserves current page
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (page > 1) params.set('page', String(page))
+    else params.delete('page')
+    setSearchParams(params, { replace: true })
+  }, [page, setSearchParams])
+
   const items = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE
     return allItems.slice(start, start + PAGE_SIZE)
@@ -295,34 +306,15 @@ export default function StaffJourneyAnomaliesPage() {
 
         setActionLoading(key)
         const toastId = toast.loading('Đang dừng chuyến…')
-        try {
+          try {
           await cancelStaffJourney(row.id)
+          // remove locally immediately — backend will no longer include cancelled journeys
+          removeAnomalyLocally(row.id)
           toast.success('Đã dừng chuyến đi', { id: toastId })
 
-          // close details and refresh
+          // close details and refresh silently
           closeDetails()
-          void load()
-
-          // After successful cancel, ask if user wants to clear the anomaly
-          const clearOk = await confirm({
-            title: 'Chuyến đã dừng',
-            message: 'Chuyến đã được dừng rồi. Bạn có muốn loại bỏ khỏi danh sách bất thường không?',
-            confirmText: 'Loại bỏ',
-            cancelText: 'Không',
-            danger: false,
-          })
-
-          if (clearOk) {
-            const t2 = toast.loading('Đang loại bỏ bất thường…')
-            try {
-              await clearStaffJourneyAnomaly(row.id)
-              removeAnomalyLocally(row.id)
-              toast.success('Đã loại bỏ bất thường', { id: t2 })
-              void load({ silent: true })
-            } catch (e) {
-              toast.error(getApiErrorMessage(e, 'Không loại bỏ được bất thường.'), { id: t2 })
-            }
-          }
+          void load({ silent: true })
         } catch (e) {
           toast.error(getApiErrorMessage(e, 'Không dừng được chuyến đi.'), { id: toastId })
         } finally {
@@ -519,7 +511,7 @@ export default function StaffJourneyAnomaliesPage() {
           </div>
 
           <div className="flex items-center justify-between gap-3 px-4 py-4 border-t border-stone-100 bg-white">
-            <div className="text-xs text-stone-500">PageSize: {PAGE_SIZE}</div>
+            <div className="text-xs text-stone-500">Số mỗi trang: {PAGE_SIZE}</div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
