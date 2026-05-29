@@ -13,6 +13,62 @@ import { getApiErrorMessage } from '../../utils/apiMessage'
 import { displayJourneyStatus, formatDate } from '../../utils/format'
 
 const PAGE_SIZE = 10
+const SUPPRESSED_IDS_STORAGE_KEY = 'journeysense.staffJourneyAnomalies.suppressedIds'
+
+type SuppressedAnomalyEntry = {
+  id: string
+  expiresAt: number
+}
+
+function readSuppressedAnomalyIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set<string>()
+
+  try {
+    const raw = window.localStorage.getItem(SUPPRESSED_IDS_STORAGE_KEY)
+    if (!raw) return new Set<string>()
+
+    const parsed = JSON.parse(raw) as SuppressedAnomalyEntry[] | unknown
+    const now = Date.now()
+
+    if (!Array.isArray(parsed)) return new Set<string>()
+
+    const fresh = parsed.filter((entry): entry is SuppressedAnomalyEntry => {
+      return Boolean(entry && typeof entry.id === 'string' && typeof entry.expiresAt === 'number' && entry.expiresAt > now)
+    })
+
+    if (fresh.length !== parsed.length) {
+      window.localStorage.setItem(SUPPRESSED_IDS_STORAGE_KEY, JSON.stringify(fresh))
+    }
+
+    return new Set(fresh.map((entry) => entry.id))
+  } catch {
+    return new Set<string>()
+  }
+}
+
+function suppressAnomalyIds(ids: string[]) {
+  if (typeof window === 'undefined' || !ids.length) return
+
+  try {
+    const now = Date.now()
+    const expiresAt = now + 24 * 60 * 60 * 1000
+    const current = Array.from(readSuppressedAnomalyIds()).map((id) => ({ id, expiresAt }))
+    const nextMap = new Map<string, SuppressedAnomalyEntry>()
+
+    current.forEach((entry) => nextMap.set(entry.id, entry))
+    ids.forEach((id) => nextMap.set(id, { id, expiresAt }))
+
+    window.localStorage.setItem(SUPPRESSED_IDS_STORAGE_KEY, JSON.stringify(Array.from(nextMap.values())))
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function filterSuppressedAnomalies(items: StaffJourneyAnomalyListItemDto[]) {
+  const suppressedIds = readSuppressedAnomalyIds()
+  if (!suppressedIds.size) return items
+  return items.filter((item) => !suppressedIds.has(item.id))
+}
 
 function reasonLabelVi(reason: StaffJourneyAnomalyListItemDto['anomalyReason']): string {
   if (reason === 'stalled') return 'Treo / quá lâu'
@@ -246,7 +302,7 @@ export default function StaffJourneyAnomaliesPage() {
     if (!opts?.silent) setLoading(true)
     try {
       const res = await listStaffJourneyAnomalies({ page: 1, pageSize: PAGE_SIZE })
-      setAllItems(Array.isArray(res) ? res : [])
+      setAllItems(Array.isArray(res) ? filterSuppressedAnomalies(res) : [])
     } catch (e) {
       toast.error(getApiErrorMessage(e, 'Không tải được danh sách hành trình bất thường'))
       setAllItems([])
@@ -306,8 +362,9 @@ export default function StaffJourneyAnomaliesPage() {
 
         setActionLoading(key)
         const toastId = toast.loading('Đang dừng chuyến…')
-          try {
+        try {
           await cancelStaffJourney(row.id)
+          suppressAnomalyIds([row.id])
           // remove locally immediately — backend will no longer include cancelled journeys
           removeAnomalyLocally(row.id)
           toast.success('Đã dừng chuyến đi', { id: toastId })
@@ -335,6 +392,7 @@ export default function StaffJourneyAnomaliesPage() {
         const toastId = toast.loading('Đang loại bỏ bất thường…')
         try {
           await clearStaffJourneyAnomaly(row.id)
+          suppressAnomalyIds([row.id])
           removeAnomalyLocally(row.id)
           toast.success('Đã loại bỏ bất thường', { id: toastId })
           closeDetails()
