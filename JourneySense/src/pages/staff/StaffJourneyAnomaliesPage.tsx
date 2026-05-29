@@ -287,6 +287,23 @@ export default function StaffJourneyAnomaliesPage() {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
+  const removeAnomalyLocally = useCallback((journeyId: string) => {
+    setData((prev) => {
+      if (!prev) return prev
+      const nextItems = prev.items.filter((item) => item.id !== journeyId)
+      if (nextItems.length === prev.items.length) return prev
+      return {
+        ...prev,
+        items: nextItems,
+        totalCount: Math.max(0, prev.totalCount - 1),
+      }
+    })
+
+    // Force fresh data for all pages after mutating anomaly state.
+    anomaliesCacheByKey.clear()
+    anomaliesInFlightByKey.clear()
+  }, [])
+
   const load = useCallback(async (opts?: { force?: boolean; silent?: boolean; page?: number }) => {
     const p = opts?.page ?? page
     const key = anomaliesKey(p, PAGE_SIZE)
@@ -376,8 +393,9 @@ export default function StaffJourneyAnomaliesPage() {
             const t2 = toast.loading('Đang loại bỏ bất thường…')
             try {
               await clearStaffJourneyAnomaly(row.id)
+              removeAnomalyLocally(row.id)
               toast.success('Đã loại bỏ bất thường', { id: t2 })
-              void load({ force: true, page })
+              void load({ force: true, page, silent: true })
             } catch (e) {
               toast.error(getApiErrorMessage(e, 'Không loại bỏ được bất thường.'), { id: t2 })
             }
@@ -402,9 +420,10 @@ export default function StaffJourneyAnomaliesPage() {
         const toastId = toast.loading('Đang loại bỏ bất thường…')
         try {
           await clearStaffJourneyAnomaly(row.id)
+          removeAnomalyLocally(row.id)
           toast.success('Đã loại bỏ bất thường', { id: toastId })
           closeDetails()
-          void load({ force: true, page })
+          void load({ force: true, page, silent: true })
         } catch (e) {
           toast.error(getApiErrorMessage(e, 'Không loại bỏ được bất thường.'), { id: toastId })
         } finally {
@@ -412,7 +431,7 @@ export default function StaffJourneyAnomaliesPage() {
         }
       }
     },
-    [actionLoading, closeDetails, load, page],
+    [actionLoading, closeDetails, load, page, removeAnomalyLocally],
   )
 
   async function loadContact(journeyId: string, travelerId: string) {
