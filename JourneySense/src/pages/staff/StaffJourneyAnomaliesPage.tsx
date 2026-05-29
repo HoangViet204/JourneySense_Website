@@ -1,63 +1,17 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
 import { useConfirmDialog } from '../../components/ConfirmDialog'
-import { cancelStaffJourney, clearStaffJourneyAnomaly, listStaffJourneyAnomalies, fetchAllStaffJourneyAnomalies } from '../../api/staffJourneys'
+import { cancelStaffJourney, clearStaffJourneyAnomaly, listStaffJourneyAnomalies } from '../../api/staffJourneys'
 import { getStaffTraveler } from '../../api/staffTravelers'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
-import type { PortalPagedResult, StaffJourneyAnomalyListItemDto, StaffTravelerDetailDto } from '../../types/portal'
+import type { StaffJourneyAnomalyListItemDto, StaffTravelerDetailDto } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { displayJourneyStatus, formatDate } from '../../utils/format'
 
 const PAGE_SIZE = 10
-const ANOMALIES_TTL_MS = 30_000
-
-type AnomaliesCacheItem = {
-  at: number
-  data: PortalPagedResult<StaffJourneyAnomalyListItemDto>
-}
-
-const anomaliesCacheByKey = new Map<string, AnomaliesCacheItem>()
-const anomaliesInFlightByKey = new Map<string, Promise<PortalPagedResult<StaffJourneyAnomalyListItemDto>>>()
-
-function anomaliesKey(page: number, pageSize: number) {
-  return `${page}|${pageSize}`
-}
-
-async function getJourneyAnomaliesCached(opts: {
-  page: number
-  pageSize: number
-  force?: boolean
-  ttlMs?: number
-}): Promise<PortalPagedResult<StaffJourneyAnomalyListItemDto>> {
-  const page = opts.page
-  const pageSize = opts.pageSize
-  const force = opts.force ?? false
-  const ttlMs = opts.ttlMs ?? ANOMALIES_TTL_MS
-
-  const key = anomaliesKey(page, pageSize)
-  const cached = anomaliesCacheByKey.get(key)
-
-  if (!force && cached && Date.now() - cached.at <= ttlMs) return cached.data
-  if (!force) {
-    const inFlight = anomaliesInFlightByKey.get(key)
-    if (inFlight) return inFlight
-  }
-
-  const promise = listStaffJourneyAnomalies({ page, pageSize })
-    .then((data) => {
-      anomaliesCacheByKey.set(key, { at: Date.now(), data })
-      return data
-    })
-    .finally(() => {
-      anomaliesInFlightByKey.delete(key)
-    })
-
-  anomaliesInFlightByKey.set(key, promise)
-  return promise
-}
 
 function reasonLabelVi(reason: StaffJourneyAnomalyListItemDto['anomalyReason']): string {
   if (reason === 'stalled') return 'Treo / quá lâu'
@@ -269,18 +223,10 @@ export default function StaffJourneyAnomaliesPage() {
 
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
-  const [loadingAll, setLoadingAll] = useState(false)
-
   const [page, setPage] = useState(1)
 
-  const [loading, setLoading] = useState(() => {
-    const cached = anomaliesCacheByKey.get(anomaliesKey(1, PAGE_SIZE))
-    return !(cached && Date.now() - cached.at <= ANOMALIES_TTL_MS)
-  })
-  const [data, setData] = useState<PortalPagedResult<StaffJourneyAnomalyListItemDto> | null>(() => {
-    const cached = anomaliesCacheByKey.get(anomaliesKey(1, PAGE_SIZE))
-    return cached && Date.now() - cached.at <= ANOMALIES_TTL_MS ? cached.data : null
-  })
+  const [loading, setLoading] = useState(false)
+  const [allItems, setAllItems] = useState<StaffJourneyAnomalyListItemDto[]>([])
 
   const [contactByJourneyId, setContactByJourneyId] = useState<Record<string, StaffTravelerDetailDto | null>>({})
   const [contactLoadingByJourneyId, setContactLoadingByJourneyId] = useState<Record<string, boolean>>({})
@@ -290,62 +236,37 @@ export default function StaffJourneyAnomaliesPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   const removeAnomalyLocally = useCallback((journeyId: string) => {
-    setData((prev) => {
-      if (!prev) return prev
-      const nextItems = prev.items.filter((item) => item.id !== journeyId)
-      if (nextItems.length === prev.items.length) return prev
-      return {
-        ...prev,
-        items: nextItems,
-        totalCount: Math.max(0, prev.totalCount - 1),
-      }
-    })
-
-    // Force fresh data for all pages after mutating anomaly state.
-    anomaliesCacheByKey.clear()
-    anomaliesInFlightByKey.clear()
+    setAllItems((prev) => prev.filter((item) => item.id !== journeyId))
   }, [])
 
-  const load = useCallback(async (opts?: { force?: boolean; silent?: boolean; page?: number }) => {
-    const p = opts?.page ?? page
-    const key = anomaliesKey(p, PAGE_SIZE)
-    const cached = anomaliesCacheByKey.get(key)
-    const isFresh = Boolean(cached && Date.now() - cached.at <= ANOMALIES_TTL_MS)
-
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true)
     try {
-      const res = await getJourneyAnomaliesCached({ page: p, pageSize: PAGE_SIZE, force: opts?.force })
-      setData(res)
+      const res = await listStaffJourneyAnomalies({ page: 1, pageSize: PAGE_SIZE })
+      setAllItems(Array.isArray(res) ? res : [])
     } catch (e) {
       toast.error(getApiErrorMessage(e, 'Không tải được danh sách hành trình bất thường'))
-      if (!isFresh) setData(null)
+      setAllItems([])
     } finally {
       if (!opts?.silent) setLoading(false)
     }
-  }, [page])
+  }, [])
 
   useEffect(() => {
-    const key = anomaliesKey(page, PAGE_SIZE)
-    const cached = anomaliesCacheByKey.get(key)
-    const isFresh = Boolean(cached && Date.now() - cached.at <= ANOMALIES_TTL_MS)
+    void load()
+  }, [load])
 
-    if (cached && isFresh) setData(cached.data)
-    setLoading(!isFresh)
-
-    const t = window.setTimeout(() => {
-      void load({ page, silent: isFresh })
-    }, 0)
-    return () => window.clearTimeout(t)
-  }, [load, page])
-
-  const items = data?.items ?? []
-  const totalCount = data?.totalCount ?? 0
+  const totalCount = allItems.length
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
   useEffect(() => {
-    if (!data) return
     if (page > totalPages) setPage(totalPages)
-  }, [data, page, totalPages])
+  }, [page, totalPages])
+
+  const items = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE
+    return allItems.slice(start, start + PAGE_SIZE)
+  }, [allItems, page])
 
   const openDetails = useCallback((row: StaffJourneyAnomalyListItemDto) => {
     setDetailsRow(row)
@@ -380,7 +301,7 @@ export default function StaffJourneyAnomaliesPage() {
 
           // close details and refresh
           closeDetails()
-          void load({ force: true, page })
+          void load()
 
           // After successful cancel, ask if user wants to clear the anomaly
           const clearOk = await confirm({
@@ -397,7 +318,7 @@ export default function StaffJourneyAnomaliesPage() {
               await clearStaffJourneyAnomaly(row.id)
               removeAnomalyLocally(row.id)
               toast.success('Đã loại bỏ bất thường', { id: t2 })
-              void load({ force: true, page, silent: true })
+              void load({ silent: true })
             } catch (e) {
               toast.error(getApiErrorMessage(e, 'Không loại bỏ được bất thường.'), { id: t2 })
             }
@@ -425,7 +346,7 @@ export default function StaffJourneyAnomaliesPage() {
           removeAnomalyLocally(row.id)
           toast.success('Đã loại bỏ bất thường', { id: toastId })
           closeDetails()
-          void load({ force: true, page, silent: true })
+          void load({ silent: true })
         } catch (e) {
           toast.error(getApiErrorMessage(e, 'Không loại bỏ được bất thường.'), { id: toastId })
         } finally {
@@ -500,41 +421,17 @@ export default function StaffJourneyAnomaliesPage() {
           <div className="text-sm text-stone-700">
             {loading ? 'Đang tải…' : totalCount > 0 ? `Có ${totalCount} hành trình cần ưu tiên` : 'Không có hành trình bất thường'}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void load({ force: true, page })}
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-50 transition-colors"
-            >
-              <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Làm mới
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                setLoadingAll(true)
-                try {
-                  const all = await fetchAllStaffJourneyAnomalies(PAGE_SIZE)
-                  // replace local data with all items
-                  anomaliesCacheByKey.clear()
-                  anomaliesInFlightByKey.clear()
-                  setData({ items: all.items, page: 1, pageSize: all.pageSize, totalCount: all.totalCount })
-                  setPage(1)
-                } catch (e) {
-                  toast.error(getApiErrorMessage(e, 'Không tải được tất cả bản ghi'))
-                } finally {
-                  setLoadingAll(false)
-                }
-              }}
-              disabled={loading || loadingAll}
-              className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-50 transition-colors"
-            >
-              {loadingAll ? 'Đang tải tất cả…' : 'Tải tất cả'}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-50 transition-colors"
+          >
+            <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Làm mới
+          </button>
         </div>
 
         <section className="rounded-2xl bg-white border border-stone-100 shadow-[0_2px_8px_rgba(0,0,0,0.03)] overflow-hidden">
