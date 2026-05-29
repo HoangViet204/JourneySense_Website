@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
+import { useConfirmDialog } from '../../components/ConfirmDialog'
 import { cancelStaffJourney, clearStaffJourneyAnomaly, listStaffJourneyAnomalies } from '../../api/staffJourneys'
 import { getStaffTraveler } from '../../api/staffTravelers'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
@@ -251,14 +252,6 @@ function JourneyAnomalyDetailsDialog({
             </button>
             <button
               type="button"
-              onClick={() => void onRunJourneyAction('clear', row)}
-              disabled={actionLoading}
-              className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-50 transition-colors"
-            >
-              Loại bỏ
-            </button>
-            <button
-              type="button"
               onClick={onClose}
               className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors"
             >
@@ -268,12 +261,13 @@ function JourneyAnomalyDetailsDialog({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   )
 }
-
 export default function StaffJourneyAnomaliesPage() {
   const { setSidebarCollapsed } = useOutletContext<StaffOutletContext>()
+
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const [page, setPage] = useState(1)
 
@@ -348,35 +342,74 @@ export default function StaffJourneyAnomaliesPage() {
     async (kind: 'cancel' | 'clear', row: StaffJourneyAnomalyListItemDto) => {
       const key = `${row.id}:${kind}`
       if (actionLoading) return
+      // Initial confirm for cancel/clear
+      if (kind === 'cancel') {
+        const ok = await confirm({
+          title: 'Dừng chuyến đi',
+          message: 'Bạn có chắc muốn dừng chuyến đi này không?',
+          confirmText: 'Dừng chuyến đi',
+          cancelText: 'Hủy',
+          danger: true,
+        })
+        if (!ok) return
 
-      const message =
-        kind === 'cancel'
-          ? 'Dùng khi chuyến đang chạy nhưng không liên hệ được user, cần dừng hẳn để xử lý.\n\nTác dụng: hủy chuyến ngay lập tức, chuyển trạng thái sang cancelled, xóa cờ bất thường và broadcast cho FE.'
-          : 'Dùng khi đã kiểm tra xong và không cần hủy chuyến.\n\nTác dụng: chỉ xóa cờ bất thường, không thay đổi trạng thái chuyến.'
-
-      const confirmed = window.confirm(`${kind === 'cancel' ? 'Dừng chuyến đi' : 'Loại bỏ bất thường'}\n\n${message}`)
-      if (!confirmed) return
-
-      setActionLoading(key)
-      const toastId = toast.loading(kind === 'cancel' ? 'Đang dừng chuyến…' : 'Đang loại bỏ bất thường…')
-
-      try {
-        if (kind === 'cancel') {
+        setActionLoading(key)
+        const toastId = toast.loading('Đang dừng chuyến…')
+        try {
           await cancelStaffJourney(row.id)
           toast.success('Đã dừng chuyến đi', { id: toastId })
-        } else {
+
+          // close details and refresh
+          closeDetails()
+          void load({ force: true, page })
+
+          // After successful cancel, ask if user wants to clear the anomaly
+          const clearOk = await confirm({
+            title: 'Chuyến đã dừng',
+            message: 'Chuyến đã được dừng rồi. Bạn có muốn loại bỏ khỏi danh sách bất thường không?',
+            confirmText: 'Loại bỏ',
+            cancelText: 'Không',
+            danger: false,
+          })
+
+          if (clearOk) {
+            const t2 = toast.loading('Đang loại bỏ bất thường…')
+            try {
+              await clearStaffJourneyAnomaly(row.id)
+              toast.success('Đã loại bỏ bất thường', { id: t2 })
+              void load({ force: true, page })
+            } catch (e) {
+              toast.error(getApiErrorMessage(e, 'Không loại bỏ được bất thường.'), { id: t2 })
+            }
+          }
+        } catch (e) {
+          toast.error(getApiErrorMessage(e, 'Không dừng được chuyến đi.'), { id: toastId })
+        } finally {
+          setActionLoading(null)
+        }
+      } else {
+        // direct clear (shouldn't appear in details dialog anymore)
+        const ok = await confirm({
+          title: 'Loại bỏ bất thường',
+          message: 'Bạn có chắc muốn loại bỏ cờ bất thường cho chuyến này không?',
+          confirmText: 'Loại bỏ',
+          cancelText: 'Hủy',
+          danger: false,
+        })
+        if (!ok) return
+
+        setActionLoading(key)
+        const toastId = toast.loading('Đang loại bỏ bất thường…')
+        try {
           await clearStaffJourneyAnomaly(row.id)
           toast.success('Đã loại bỏ bất thường', { id: toastId })
+          closeDetails()
+          void load({ force: true, page })
+        } catch (e) {
+          toast.error(getApiErrorMessage(e, 'Không loại bỏ được bất thường.'), { id: toastId })
+        } finally {
+          setActionLoading(null)
         }
-
-        closeDetails()
-        void load({ force: true, page })
-      } catch (e) {
-        toast.error(getApiErrorMessage(e, kind === 'cancel' ? 'Không dừng được chuyến đi.' : 'Không loại bỏ được bất thường.'), {
-          id: toastId,
-        })
-      } finally {
-        setActionLoading(null)
       }
     },
     [actionLoading, closeDetails, load, page],
@@ -440,6 +473,7 @@ export default function StaffJourneyAnomaliesPage() {
           actionLoading={actionLoading !== null}
           onRunJourneyAction={(kind, row) => void runJourneyAction(kind, row)}
         />
+        {confirmDialog}
 
         <div className="rounded-2xl bg-white/95 border border-stone-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 sm:p-5 flex items-center justify-between gap-3">
           <div className="text-sm text-stone-700">
