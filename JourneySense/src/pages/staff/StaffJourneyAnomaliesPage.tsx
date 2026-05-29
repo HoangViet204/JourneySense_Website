@@ -4,7 +4,7 @@ import { useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
 import { useConfirmDialog } from '../../components/ConfirmDialog'
-import { cancelStaffJourney, clearStaffJourneyAnomaly, listStaffJourneyAnomalies } from '../../api/staffJourneys'
+import { cancelStaffJourney, clearStaffJourneyAnomaly, listStaffJourneyAnomalies, fetchAllStaffJourneyAnomalies } from '../../api/staffJourneys'
 import { getStaffTraveler } from '../../api/staffTravelers'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
 import type { PortalPagedResult, StaffJourneyAnomalyListItemDto, StaffTravelerDetailDto } from '../../types/portal'
@@ -269,6 +269,8 @@ export default function StaffJourneyAnomaliesPage() {
 
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
+  const [loadingAll, setLoadingAll] = useState(false)
+
   const [page, setPage] = useState(1)
 
   const [loading, setLoading] = useState(() => {
@@ -498,17 +500,41 @@ export default function StaffJourneyAnomaliesPage() {
           <div className="text-sm text-stone-700">
             {loading ? 'Đang tải…' : totalCount > 0 ? `Có ${totalCount} hành trình cần ưu tiên` : 'Không có hành trình bất thường'}
           </div>
-          <button
-            type="button"
-            onClick={() => void load({ force: true, page })}
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-50 transition-colors"
-          >
-            <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Làm mới
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void load({ force: true, page })}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-50 transition-colors"
+            >
+              <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Làm mới
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                setLoadingAll(true)
+                try {
+                  const all = await fetchAllStaffJourneyAnomalies(PAGE_SIZE)
+                  // replace local data with all items
+                  anomaliesCacheByKey.clear()
+                  anomaliesInFlightByKey.clear()
+                  setData({ items: all.items, page: 1, pageSize: all.pageSize, totalCount: all.totalCount })
+                  setPage(1)
+                } catch (e) {
+                  toast.error(getApiErrorMessage(e, 'Không tải được tất cả bản ghi'))
+                } finally {
+                  setLoadingAll(false)
+                }
+              }}
+              disabled={loading || loadingAll}
+              className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50 disabled:opacity-50 transition-colors"
+            >
+              {loadingAll ? 'Đang tải tất cả…' : 'Tải tất cả'}
+            </button>
+          </div>
         </div>
 
         <section className="rounded-2xl bg-white border border-stone-100 shadow-[0_2px_8px_rgba(0,0,0,0.03)] overflow-hidden">
