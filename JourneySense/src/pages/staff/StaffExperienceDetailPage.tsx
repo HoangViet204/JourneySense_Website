@@ -101,8 +101,8 @@ function toUtcIsoFromDatetimeLocal(input: string): string | undefined {
 }
 
 export default function StaffExperienceDetailPage() {
-  const { journeyId } = useParams<{ journeyId: string }>()
-  const experienceId = journeyId
+  const { placeId, journeyId } = useParams<{ placeId: string; journeyId: string }>()
+  const experienceId = placeId ?? journeyId
   const navigate = useNavigate()
   const { setSidebarCollapsed } = useOutletContext<StaffOutletContext>()
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
