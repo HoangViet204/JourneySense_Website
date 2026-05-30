@@ -6,7 +6,6 @@ import { toast } from 'sonner'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
 import { useConfirmDialog } from '../../components/ConfirmDialog'
 import { cancelStaffJourney, clearStaffJourneyAnomaly, listStaffJourneyAnomalies } from '../../api/staffJourneys'
-import { getStaffJourney } from '../../api/staffJourneys'
 import { getStaffTraveler } from '../../api/staffTravelers'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
 import type { StaffJourneyAnomalyListItemDto, StaffTravelerDetailDto } from '../../types/portal'
@@ -99,8 +98,6 @@ type JourneyAnomalyDetailsDialogProps = {
   contact: StaffTravelerDetailDto | null | undefined
   contactLoading: boolean
   onLoadContact: (journeyId: string, travelerId: string) => void
-  ownerDetail: { ownerFullName?: string | null; ownerEmail?: string | null; ownerPhone?: string | null } | null | undefined
-  ownerDetailLoading: boolean
   actionLoading: boolean
   onRunJourneyAction: (kind: 'cancel' | 'clear', row: StaffJourneyAnomalyListItemDto) => void
 }
@@ -112,8 +109,6 @@ function JourneyAnomalyDetailsDialog({
   contact,
   contactLoading,
   onLoadContact,
-  ownerDetail,
-  ownerDetailLoading,
   actionLoading,
   onRunJourneyAction,
 }: JourneyAnomalyDetailsDialogProps) {
@@ -231,6 +226,9 @@ function JourneyAnomalyDetailsDialog({
                     <div className="mt-1 text-sm text-rose-600">Không tải được</div>
                   ) : (
                     <div className="mt-2 text-sm text-stone-700 space-y-1">
+                      <div className="truncate" title={contact.fullName ?? ''}>
+                        Tên chủ chuyến: <span className="font-semibold">{contact.fullName ?? '—'}</span>
+                      </div>
                       <div className="truncate" title={contact.email ?? ''}>
                         Thư điện tử: <span className="font-semibold">{contact.email ?? '—'}</span>
                       </div>
@@ -253,26 +251,6 @@ function JourneyAnomalyDetailsDialog({
                 {contactLoading ? 'Đang tải…' : contact !== undefined ? 'Đã tải' : 'Tải liên hệ'}
               </button>
             </div>
-          </section>
-          <section className="rounded-2xl border border-stone-100 bg-white p-4">
-            <div className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold">Chủ chuyến</div>
-            {ownerDetailLoading ? (
-              <div className="mt-2 text-sm text-stone-500">Đang tải…</div>
-            ) : ownerDetail ? (
-              <div className="mt-2 text-sm text-stone-700 space-y-1">
-                <div>
-                  Họ tên: <span className="font-semibold text-stone-900">{ownerDetail.ownerFullName ?? '—'}</span>
-                </div>
-                <div>
-                  Email: <span className="font-semibold text-stone-900">{ownerDetail.ownerEmail ?? '—'}</span>
-                </div>
-                <div>
-                  Số điện thoại: <span className="font-semibold text-stone-900">{ownerDetail.ownerPhone ?? '—'}</span>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-2 text-sm text-stone-500">Chưa tải</div>
-            )}
           </section>
         </div>
 
@@ -316,8 +294,6 @@ export default function StaffJourneyAnomaliesPage() {
   const [contactLoadingByJourneyId, setContactLoadingByJourneyId] = useState<Record<string, boolean>>({})
 
   const [detailsRow, setDetailsRow] = useState<StaffJourneyAnomalyListItemDto | null>(null)
-  const [ownerDetail, setOwnerDetail] = useState<{ ownerFullName?: string | null; ownerEmail?: string | null; ownerPhone?: string | null } | null>(null)
-  const [ownerDetailLoading, setOwnerDetailLoading] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
@@ -362,29 +338,14 @@ export default function StaffJourneyAnomaliesPage() {
     return allItems.slice(start, start + PAGE_SIZE)
   }, [allItems, page])
 
-  const openDetails = useCallback(async (row: StaffJourneyAnomalyListItemDto) => {
+  const openDetails = useCallback((row: StaffJourneyAnomalyListItemDto) => {
     setDetailsRow(row)
     setDetailsOpen(true)
-    setOwnerDetailLoading(true)
-    try {
-      const detail = await getStaffJourney(row.id)
-      setOwnerDetail({
-        ownerFullName: detail.ownerFullName ?? null,
-        ownerEmail: detail.ownerEmail ?? null,
-        ownerPhone: detail.ownerPhone ?? null,
-      })
-    } catch {
-      setOwnerDetail(null)
-    } finally {
-      setOwnerDetailLoading(false)
-    }
   }, [])
 
   const closeDetails = useCallback(() => {
     setDetailsOpen(false)
     setDetailsRow(null)
-    setOwnerDetail(null)
-    setOwnerDetailLoading(false)
   }, [])
 
   const runJourneyAction = useCallback(
@@ -504,8 +465,6 @@ export default function StaffJourneyAnomaliesPage() {
           contact={detailsRow ? contactByJourneyId[detailsRow.id] : undefined}
           contactLoading={detailsRow ? (contactLoadingByJourneyId[detailsRow.id] ?? false) : false}
           onLoadContact={(journeyId, travelerId) => void loadContact(journeyId, travelerId)}
-          ownerDetail={ownerDetail}
-          ownerDetailLoading={ownerDetailLoading}
           actionLoading={actionLoading !== null}
           onRunJourneyAction={(kind, row) => void runJourneyAction(kind, row)}
         />

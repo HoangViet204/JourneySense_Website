@@ -74,7 +74,9 @@ function JourneyDetailDialog(props: {
         <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-stone-100 bg-[#f5f0e8]/60">
           <div className="min-w-0">
             <div className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold">Chi tiết hành trình</div>
-            <div className="text-base font-semibold text-stone-900 truncate">{row.originAddress ?? '—'} → {row.destinationAddress ?? '—'}</div>
+            <div className="text-base font-semibold text-stone-900 truncate">
+              {detail?.journeyName ?? detail?.name ?? `${row.originAddress ?? '—'} → ${row.destinationAddress ?? '—'}`}
+            </div>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusPillClass(row.status)}`}>
                 {displayJourneyStatus(row.status)}
@@ -103,6 +105,8 @@ function JourneyDetailDialog(props: {
               <div className="text-stone-800 font-semibold">{row.destinationAddress ?? '—'}</div>
               <div className="text-stone-500">Trạng thái</div>
               <div className="text-stone-800 font-semibold">{displayJourneyStatus(row.status)}</div>
+              <div className="text-stone-500">Tên hành trình</div>
+              <div className="text-stone-800 font-semibold">{detailLoading ? 'Đang tải…' : detail?.journeyName ?? detail?.name ?? '—'}</div>
               <div className="text-stone-500">Thời gian bắt đầu</div>
               <div className="text-stone-800 font-semibold">{formatDate(row.startedAt ?? row.createdAt)}</div>
               <div className="text-stone-500">Chủ chuyến</div>
