@@ -34,13 +34,11 @@ export default function ExperienceReportDetailBody(props: {
   canDismiss?: boolean
 }) {
   const { reportId, backTo, experienceLink, userLink, canDismiss = true } = props
-  const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState<ExperienceReportDetailDto | null>(null)
   const navigate = useNavigate()
   const { confirm, dialog } = useConfirmDialog()
 
   const load = useCallback(async () => {
-    setLoading(true)
     try {
       const data = await getExperienceReport(reportId)
       setDetail(data)
@@ -48,8 +46,6 @@ export default function ExperienceReportDetailBody(props: {
       const msg = getApiErrorMessage(e, 'Không tải được chi tiết report.')
       toast.error(msg)
       setDetail(null)
-    } finally {
-      setLoading(false)
     }
   }, [reportId])
 
@@ -62,21 +58,21 @@ export default function ExperienceReportDetailBody(props: {
 
   const dismiss = async () => {
     const ok = await confirm({
-      title: 'Dismiss report',
-      message: 'Bạn có chắc muốn dismiss report này không?',
-      confirmText: 'Dismiss',
+      title: 'Bỏ qua báo cáo',
+      message: 'Bạn có chắc muốn bỏ qua báo cáo này không?',
+      confirmText: 'Bỏ qua',
       cancelText: 'Hủy',
       danger: true,
     })
     if (!ok) return
 
-    const t = toast.loading('Đang dismiss…')
+      const t = toast.loading('Đang bỏ qua…')
     try {
       await dismissExperienceReport(reportId)
-      toast.success('Đã dismiss report', { id: t })
+      toast.success('Đã bỏ qua báo cáo', { id: t })
       navigate(backTo)
     } catch (e) {
-      toast.error(getApiErrorMessage(e, 'Không thể xóa report.'), { id: t })
+      toast.error(getApiErrorMessage(e, 'Không thể bỏ qua báo cáo.'), { id: t })
     }
   }
 
@@ -114,7 +110,7 @@ export default function ExperienceReportDetailBody(props: {
               to={userLink(reporterUserId)}
               className="px-3 py-2 rounded-xl border border-stone-200 bg-white text-stone-700 text-xs font-semibold shadow-sm hover:bg-stone-50"
             >
-              Mở user
+              Mở người dùng
             </Link>
           ) : null}
           {canDismiss ? (
@@ -123,7 +119,7 @@ export default function ExperienceReportDetailBody(props: {
               onClick={() => void dismiss()}
               className="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold shadow-sm hover:bg-rose-100"
             >
-              Dismiss
+              Bỏ qua
             </button>
           ) : null}
         </div>
@@ -131,13 +127,11 @@ export default function ExperienceReportDetailBody(props: {
 
       <section className="rounded-2xl bg-white border border-stone-100 shadow-[0_2px_8px_rgba(0,0,0,0.03)] overflow-hidden">
         <div className="px-4 sm:px-6 py-4 border-b border-stone-100 bg-white">
-          <p className="text-xs text-stone-500">{loading ? 'Đang tải…' : detail ? `ReportId: ${detail.reportId}` : '—'}</p>
         </div>
         <dl className="px-4 sm:px-6 py-2">
           <DlRow label="Địa điểm">{detail?.experienceName || '—'}</DlRow>
-          <DlRow label="Experience ID">{detail?.experienceId || '—'}</DlRow>
           <DlRow label="Trạng thái">{detail?.experienceStatus || '—'}</DlRow>
-          <DlRow label="Người report">{reporterLine(detail)}</DlRow>
+          <DlRow label="Người báo cáo">{reporterLine(detail)}</DlRow>
           <DlRow label="Lý do">
             {Array.isArray(reasons) && reasons.length ? (
               <div className="flex flex-wrap gap-1.5">

@@ -44,7 +44,7 @@ export default function StaffExperienceReportDetailPage() {
           reportId={reportId}
           backTo="/staff/experience-reports"
           experienceLink={(experienceId) => `/staff/journeys/${experienceId}`}
-          canDismiss={false}
+          canDismiss={true}
         />
       </main>
     </div>
