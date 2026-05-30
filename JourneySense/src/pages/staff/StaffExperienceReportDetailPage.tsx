@@ -43,7 +43,7 @@ export default function StaffExperienceReportDetailPage() {
         <ExperienceReportDetailBody
           reportId={reportId}
           backTo="/staff/experience-reports"
-          experienceLink={(experienceId) => `/staff/journeys/${experienceId}`}
+          experienceLink={(experienceId) => `/staff/places/${experienceId}`}
           canDismiss={true}
         />
       </main>

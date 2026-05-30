@@ -21,7 +21,7 @@ import LoginPage from '../pages/LoginPage'
 import StaffCreateJourneyPage from '../pages/staff/StaffCreateJourneyPage'
 import StaffDashboardPage from '../pages/staff/StaffDashboardPage'
 import StaffEditJourneyPage from '../pages/staff/StaffEditJourneyPage'
-import StaffPlaceDetailPage from '../pages/staff/StaffPlaceDetailPage'
+import StaffExperienceDetailPage from '../pages/staff/StaffExperienceDetailPage'
 import StaffPlacesPage from '../pages/staff/StaffPlacesPage'
 import StaffJourneyDetailPage from '../pages/staff/StaffJourneyDetailPage'
 import StaffFeedbackDetailPage from '../pages/staff/StaffFeedbackDetailPage'
@@ -79,7 +79,7 @@ export default function AppRoutes() {
       >
         <Route index element={<StaffDashboardPage />} />
         <Route path="places" element={<StaffPlacesPage />} />
-        <Route path="places/:placeId" element={<StaffPlaceDetailPage />} />
+        <Route path="places/:placeId" element={<StaffExperienceDetailPage />} />
         <Route path="experience-reports" element={<StaffExperienceReportsPage />} />
         <Route path="experience-reports/:reportId" element={<StaffExperienceReportDetailPage />} />
         <Route path="feedback" element={<StaffFeedbackPage />} />
