@@ -2,8 +2,15 @@ import api from './axios'
 import type { JourneyDetailResponse, PortalPagedResult, StaffJourneyAnomalyListItemDto, StaffJourneyListItemDto } from '../types/portal'
 
 function pick<T extends Record<string, unknown>>(obj: T, ...keys: string[]): unknown {
+  const lowerKeyMap = new Map<string, string>()
+  for (const key of Object.keys(obj)) {
+    lowerKeyMap.set(key.toLowerCase(), key)
+  }
+
   for (const key of keys) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) return obj[key]
+    const actualKey = lowerKeyMap.get(key.toLowerCase())
+    if (actualKey) return obj[actualKey]
   }
   return undefined
 }
