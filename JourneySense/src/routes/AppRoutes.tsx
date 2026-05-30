@@ -92,7 +92,7 @@ export default function AppRoutes() {
         <Route path="journeys/:journeyId" element={<StaffJourneyDetailPage />} />
         <Route path="profile" element={<PortalProfilePage />} />
       </Route>
-
+        // Catch-all route to redirect to home page for any undefined routes
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
