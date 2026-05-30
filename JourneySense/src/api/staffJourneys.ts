@@ -1,5 +1,5 @@
 import api from './axios'
-import type { PortalPagedResult, StaffJourneyAnomalyListItemDto, StaffJourneyListItemDto } from '../types/portal'
+import type { JourneyDetailResponse, PortalPagedResult, StaffJourneyAnomalyListItemDto, StaffJourneyListItemDto } from '../types/portal'
 
 export type StaffJourneyStatusFilter = '' | string
 
@@ -28,6 +28,11 @@ export async function listStaffJourneyAnomalies(params?: {
       pageSize: params?.pageSize ?? 10,
     },
   })
+  return data
+}
+
+export async function getStaffJourney(journeyId: string): Promise<JourneyDetailResponse> {
+  const { data } = await api.get<JourneyDetailResponse>(`/api/staff/journeys/${encodeURIComponent(journeyId)}`)
   return data
 }
 

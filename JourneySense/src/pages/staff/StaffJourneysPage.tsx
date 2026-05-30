@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useOutletContext } from 'react-router-dom'
+import { createPortal } from 'react-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useOutletContext } from 'react-router-dom'
 import { toast } from 'sonner'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
-import { listStaffJourneys } from '../../api/staffJourneys'
+import { getStaffJourney, listStaffJourneys } from '../../api/staffJourneys'
 import StatCards from '../../components/StatCards'
 import type { StaffOutletContext } from '../../layouts/staffOutletContext'
-import type { PortalPagedResult, StaffJourneyListItemDto } from '../../types/portal'
+import type { JourneyDetailResponse, PortalPagedResult, StaffJourneyListItemDto } from '../../types/portal'
 import { getApiErrorMessage } from '../../utils/apiMessage'
 import { displayJourneyStatus, formatDate } from '../../utils/format'
 import { loadListUiState, patchListUiState } from '../../utils/listUiState'
@@ -36,6 +37,124 @@ function isInProgressStatus(status?: string | null): boolean {
   return s === 'inprogress' || s === 'in_progress'
 }
 
+function JourneyDetailDialog(props: {
+  open: boolean
+  row: StaffJourneyListItemDto | null
+  detail: JourneyDetailResponse | null | undefined
+  detailLoading: boolean
+  onClose: () => void
+}) {
+  const { open, row, detail, detailLoading, onClose } = props
+
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = prev
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open, onClose])
+
+  const waypoints = useMemo(() => {
+    const items = Array.isArray(detail?.waypoints) ? detail?.waypoints.filter(Boolean) : []
+    return [...items].sort((a, b) => (a.stopOrder ?? 0) - (b.stopOrder ?? 0))
+  }, [detail])
+
+  if (!open || !row) return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-stone-900/40 [backdrop-filter:blur(3px)]" onMouseDown={(e) => e.target === e.currentTarget && onClose()} />
+      <div role="dialog" aria-modal="true" aria-label="Chi tiết hành trình" className="relative w-full max-w-3xl rounded-2xl border border-stone-200/80 bg-white shadow-xl shadow-stone-900/15 overflow-hidden">
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-stone-100 bg-[#f5f0e8]/60">
+          <div className="min-w-0">
+            <div className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold">Chi tiết hành trình</div>
+            <div className="text-base font-semibold text-stone-900 truncate">{row.originAddress ?? '—'} → {row.destinationAddress ?? '—'}</div>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusPillClass(row.status)}`}>
+                {displayJourneyStatus(row.status)}
+              </span>
+              {isInProgressStatus(row.status) && (
+                <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold bg-stone-100 text-stone-700">
+                  Đang diễn ra
+                </span>
+              )}
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="shrink-0 inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white p-2 text-stone-700 shadow-sm hover:bg-stone-50" aria-label="Đóng">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="max-h-[70vh] overflow-auto px-5 py-4 space-y-5">
+          <section className="rounded-2xl border border-stone-100 bg-white p-4">
+            <div className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold">Thông tin chính</div>
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+              <div className="text-stone-500">Điểm đi</div>
+              <div className="text-stone-800 font-semibold">{row.originAddress ?? '—'}</div>
+              <div className="text-stone-500">Điểm đến</div>
+              <div className="text-stone-800 font-semibold">{row.destinationAddress ?? '—'}</div>
+              <div className="text-stone-500">Trạng thái</div>
+              <div className="text-stone-800 font-semibold">{displayJourneyStatus(row.status)}</div>
+              <div className="text-stone-500">Thời gian bắt đầu</div>
+              <div className="text-stone-800 font-semibold">{formatDate(row.startedAt ?? row.createdAt)}</div>
+              <div className="text-stone-500">Chủ chuyến</div>
+              <div className="text-stone-800 font-semibold">
+                {detailLoading ? 'Đang tải…' : detail?.ownerFullName ?? '—'}
+                {detail?.ownerEmail ? <span className="block text-xs font-normal text-stone-500">{detail.ownerEmail}</span> : null}
+                {detail?.ownerPhone ? <span className="block text-xs font-normal text-stone-500">{detail.ownerPhone}</span> : null}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-stone-100 bg-white p-4">
+            <div className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold">Waypoint đã chọn</div>
+            {detailLoading ? (
+              <div className="mt-2 text-sm text-stone-500">Đang tải…</div>
+            ) : waypoints.length > 0 ? (
+              <div className="mt-3 overflow-x-auto">
+                <table className="min-w-[520px] w-full table-fixed text-sm">
+                  <colgroup>
+                    <col className="w-[72px]" />
+                    <col className="min-w-0" />
+                    <col className="w-[44%]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="bg-[#f5f0e8] text-left text-xs font-semibold uppercase tracking-wide text-stone-600">
+                      <th className="px-4 py-3">STT</th>
+                      <th className="px-4 py-3">Tên</th>
+                      <th className="px-4 py-3">Địa chỉ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {waypoints.map((wp, i) => (
+                      <tr key={wp.waypointId} className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/40'}>
+                        <td className="px-4 py-3 font-semibold text-stone-900">{wp.stopOrder}</td>
+                        <td className="px-4 py-3 text-stone-800 truncate" title={wp.name ?? ''}>{wp.name ?? '—'}</td>
+                        <td className="px-4 py-3 text-stone-600 truncate" title={wp.address ?? ''}>{wp.address ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="mt-2 text-sm text-stone-500">Chưa có waypoint nào được chọn.</div>
+            )}
+          </section>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 export default function StaffJourneysPage() {
   const { setSidebarCollapsed } = useOutletContext<StaffOutletContext>()
   const location = useLocation()
@@ -52,6 +171,10 @@ export default function StaffJourneysPage() {
   const [loading, setLoading] = useState(false)
   const [hydrated, setHydrated] = useState(false)
   const [summary, setSummary] = useState<{ total: number; planning: number; inProgress: number; completed: number; cancelled: number } | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailRow, setDetailRow] = useState<StaffJourneyListItemDto | null>(null)
+  const [detailById, setDetailById] = useState<Record<string, JourneyDetailResponse | null>>({})
+  const [detailLoadingById, setDetailLoadingById] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (loading) sawLoading.current = true
@@ -159,8 +282,39 @@ export default function StaffJourneysPage() {
   const pagerBtn =
     'px-3.5 py-2 text-sm rounded-xl border border-stone-200 bg-white text-stone-700 font-medium shadow-sm hover:bg-stone-50 hover:border-stone-300 disabled:opacity-40 disabled:pointer-events-none transition-colors'
 
+  const openDetail = useCallback((row: StaffJourneyListItemDto) => {
+    setDetailRow(row)
+    setDetailOpen(true)
+    if (detailById[row.id] !== undefined) return
+
+    setDetailLoadingById((m) => ({ ...m, [row.id]: true }))
+    void getStaffJourney(row.id)
+      .then((detail) => {
+        setDetailById((m) => ({ ...m, [row.id]: detail }))
+      })
+      .catch((e) => {
+        toast.error(getApiErrorMessage(e, 'Không tải được chi tiết hành trình'))
+        setDetailById((m) => ({ ...m, [row.id]: null }))
+      })
+      .finally(() => {
+        setDetailLoadingById((m) => ({ ...m, [row.id]: false }))
+      })
+  }, [detailById])
+
+  const closeDetail = useCallback(() => {
+    setDetailOpen(false)
+    setDetailRow(null)
+  }, [])
+
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] font-['Lato',system-ui,sans-serif]">
+      <JourneyDetailDialog
+        open={detailOpen}
+        row={detailRow}
+        detail={detailRow ? detailById[detailRow.id] : undefined}
+        detailLoading={detailRow ? (detailLoadingById[detailRow.id] ?? false) : false}
+        onClose={closeDetail}
+      />
       <header className="shrink-0 flex items-center justify-between gap-4 px-4 sm:px-6 py-3.5 bg-white/85 [backdrop-filter:saturate(180%)_blur(8px)] border-b border-stone-200/80">
         <div className="flex items-center gap-3 min-w-0">
           <button
@@ -312,12 +466,13 @@ export default function StaffJourneysPage() {
                       </td>
                       <td className="px-4 py-3 text-stone-700">{formatDate(row.startedAt ?? row.createdAt)}</td>
                       <td className="px-4 py-3 text-center">
-                        <Link
-                          to={`/staff/journeys/${row.id}`}
+                        <button
+                          type="button"
+                          onClick={() => openDetail(row)}
                           className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 hover:border-stone-300 transition-colors"
                         >
                           Xem
-                        </Link>
+                        </button>
                       </td>
                     </tr>
                   ))}

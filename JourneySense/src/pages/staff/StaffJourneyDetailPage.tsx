@@ -1,0 +1,440 @@
+import goongjs from '@goongmaps/goong-js'
+import '@goongmaps/goong-js/dist/goong-js.css'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
+import api from '../../api/axios'
+import type { GeoPointResponse, JourneyDetailResponse, JourneyWaypointResponse } from '../../types/portal'
+import { getApiErrorMessage } from '../../utils/apiMessage'
+import { displayJourneyStatus, formatDate } from '../../utils/format'
+
+type LngLat = [number, number]
+
+type GoongMapInstance = {
+  on: (event: 'load', cb: () => void) => void
+  addSource: (id: string, source: unknown) => void
+  addLayer: (layer: unknown) => void
+  removeLayer: (id: string) => void
+  removeSource: (id: string) => void
+  getLayer: (id: string) => unknown
+  getSource: (id: string) => unknown
+  fitBounds: (bounds: [LngLat, LngLat], options?: { padding?: number; maxZoom?: number }) => void
+  setCenter: (center: LngLat) => void
+  remove: () => void
+}
+
+type GoongMarkerInstance = {
+  setLngLat: (pos: LngLat) => GoongMarkerInstance
+  addTo: (map: GoongMapInstance) => GoongMarkerInstance
+  remove?: () => void
+}
+
+type GoongSdk = {
+  accessToken: string
+  Map: new (opts: { container: HTMLElement; style: string; center: LngLat; zoom: number }) => GoongMapInstance
+  Marker: new (opts?: { element?: HTMLElement }) => GoongMarkerInstance
+}
+
+const card = 'rounded-2xl border border-stone-200/80 bg-white p-5 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.04)]'
+
+function toLngLat(p: { latitude?: number | null; longitude?: number | null } | GeoPointResponse): LngLat | null {
+  const lat = Number((p as { latitude?: number | null }).latitude)
+  const lng = Number((p as { longitude?: number | null }).longitude)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  return [lng, lat]
+}
+
+function sortWaypoints(waypoints: JourneyWaypointResponse[]): JourneyWaypointResponse[] {
+  return [...waypoints].sort((a, b) => (a.stopOrder ?? 0) - (b.stopOrder ?? 0))
+}
+
+function buildBounds(points: LngLat[]): [LngLat, LngLat] | null {
+  if (!points.length) return null
+  let minLng = points[0][0]
+  let maxLng = points[0][0]
+  let minLat = points[0][1]
+  let maxLat = points[0][1]
+
+  for (const [lng, lat] of points) {
+    if (lng < minLng) minLng = lng
+    if (lng > maxLng) maxLng = lng
+    if (lat < minLat) minLat = lat
+    if (lat > maxLat) maxLat = lat
+  }
+
+  if (!Number.isFinite(minLng) || !Number.isFinite(maxLng) || !Number.isFinite(minLat) || !Number.isFinite(maxLat)) return null
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ]
+}
+
+function safeRemoveMarkers(markers: GoongMarkerInstance[]) {
+  for (const m of markers) {
+    try {
+      m.remove?.()
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function renderOverviewMap(opts: {
+  map: GoongMapInstance
+  sdk: GoongSdk
+  markersRef: React.MutableRefObject<GoongMarkerInstance[]>
+  mapData: {
+    line: LngLat[]
+    waypointPoints: Array<{ lngLat: LngLat; stopOrder: number; name?: string | null }>
+    bounds: [LngLat, LngLat] | null
+    center: LngLat
+  }
+}) {
+  const { map, sdk, markersRef, mapData } = opts
+
+  safeRemoveMarkers(markersRef.current)
+  markersRef.current = []
+
+  const sourceId = 'staff-journey-route'
+  const layerId = 'staff-journey-route-line'
+
+  try {
+    if (map.getLayer(layerId)) map.removeLayer(layerId)
+  } catch {
+    // ignore
+  }
+  try {
+    if (map.getSource(sourceId)) map.removeSource(sourceId)
+  } catch {
+    // ignore
+  }
+
+  if (mapData.line.length >= 2) {
+    const geojson = {
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'LineString',
+        coordinates: mapData.line,
+      },
+    }
+
+    map.addSource(sourceId, {
+      type: 'geojson',
+      data: geojson,
+    })
+
+    map.addLayer({
+      id: layerId,
+      type: 'line',
+      source: sourceId,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#c5a070', 'line-width': 4 },
+    })
+  }
+
+  for (const wp of mapData.waypointPoints) {
+    const el = document.createElement('div')
+    el.className = 'w-7 h-7 rounded-full bg-amber-600 text-white text-xs font-bold flex items-center justify-center shadow-sm ring-2 ring-white'
+    el.title = wp.name ? `${wp.stopOrder}. ${wp.name}` : `${wp.stopOrder}`
+    el.textContent = String(wp.stopOrder)
+    const marker = new sdk.Marker({ element: el }).setLngLat(wp.lngLat).addTo(map)
+    markersRef.current.push(marker)
+  }
+
+  if (mapData.bounds) {
+    map.fitBounds(mapData.bounds, { padding: 48, maxZoom: 15 })
+  } else {
+    map.setCenter(mapData.center)
+  }
+}
+
+function valueOrDash(value?: string | null) {
+  return value?.trim() || '—'
+}
+
+export default function StaffJourneyDetailPage() {
+  const { journeyId } = useParams<{ journeyId: string }>()
+  const goongMapKey = import.meta.env.VITE_GOONG_MAP_KEY
+
+  const [loading, setLoading] = useState(false)
+  const [detail, setDetail] = useState<JourneyDetailResponse | null>(null)
+
+  const mapContainerRef = useRef<HTMLDivElement | null>(null)
+  const mapRef = useRef<GoongMapInstance | null>(null)
+  const markersRef = useRef<GoongMarkerInstance[]>([])
+  const mapLoadedRef = useRef(false)
+
+  const load = useCallback(async () => {
+    if (!journeyId) return
+    setLoading(true)
+    try {
+      const { data } = await api.get<JourneyDetailResponse>(`/api/staff/journeys/${encodeURIComponent(journeyId)}`)
+      setDetail(data)
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, 'Không tải được chi tiết hành trình'))
+      setDetail(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [journeyId])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const routePoints = useMemo(() => {
+    const pts = detail?.routePoints && detail.routePoints.length ? detail.routePoints : detail?.setupPrimaryRoutePoints
+    return Array.isArray(pts) ? pts : []
+  }, [detail])
+
+  const sortedWaypoints = useMemo(() => {
+    const wps = Array.isArray(detail?.waypoints) ? detail!.waypoints!.filter(Boolean) : []
+    return sortWaypoints(wps)
+  }, [detail])
+
+  const mapData = useMemo(() => {
+    const line: LngLat[] = []
+    for (const p of routePoints) {
+      const ll = toLngLat(p)
+      if (ll) line.push(ll)
+    }
+
+    const waypointPoints: Array<{ lngLat: LngLat; stopOrder: number; name?: string | null }> = []
+    for (const wp of sortedWaypoints) {
+      const ll = toLngLat(wp)
+      if (!ll) continue
+      waypointPoints.push({ lngLat: ll, stopOrder: wp.stopOrder, name: wp.name })
+    }
+
+    const all = [...line, ...waypointPoints.map((w) => w.lngLat)]
+    return {
+      line,
+      waypointPoints,
+      bounds: buildBounds(all),
+      center: all.length ? all[0] : ([105.8342, 21.0278] as LngLat),
+    }
+  }, [routePoints, sortedWaypoints])
+
+  useEffect(() => {
+    const container = mapContainerRef.current
+    if (!container) return
+    if (!goongMapKey) return
+
+    const sdk = goongjs as unknown as GoongSdk
+    sdk.accessToken = goongMapKey
+
+    const map = new sdk.Map({
+      container,
+      style: `https://tiles.goong.io/assets/goong_map_web.json?api_key=${encodeURIComponent(goongMapKey)}`,
+      center: mapData.center,
+      zoom: 11,
+    })
+
+    mapRef.current = map
+    mapLoadedRef.current = false
+
+    map.on('load', () => {
+      mapLoadedRef.current = true
+      renderOverviewMap({ map, sdk, markersRef, mapData })
+    })
+
+    return () => {
+      safeRemoveMarkers(markersRef.current)
+      markersRef.current = []
+
+      try {
+        map.remove()
+      } catch {
+        // ignore
+      }
+      mapRef.current = null
+      mapLoadedRef.current = false
+    }
+  }, [goongMapKey, mapData.center])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    if (!mapLoadedRef.current) return
+
+    const sdk = goongjs as unknown as GoongSdk
+    renderOverviewMap({ map, sdk, markersRef, mapData })
+  }, [mapData])
+
+  const canViewLiveTracking = useMemo(() => detail?.status?.trim()?.toLowerCase() === 'inprogress', [detail?.status])
+
+  if (!journeyId) return null
+
+  return (
+    <main className="min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[#fdfbf7] via-[#faf6ef] to-[#f5f0e8] p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto w-full max-w-6xl space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="font-['Cormorant_Garamond',serif] text-2xl font-semibold text-stone-900 sm:text-3xl">Chi tiết hành trình</h1>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {canViewLiveTracking ? (
+              <Link
+                to={`/admin/journeys/${journeyId}/tracking`}
+                className="inline-flex items-center justify-center rounded-xl bg-[#c5a070] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f]"
+              >
+                Xem hành trình thực tế
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                title="Chỉ xem được khi hành trình đang diễn ra"
+                className="inline-flex cursor-not-allowed items-center justify-center rounded-xl bg-stone-200 px-4 py-2 text-sm font-semibold text-stone-500 shadow-sm"
+              >
+                Xem hành trình thực tế
+              </button>
+            )}
+            <Link
+              to="/staff/journeys"
+              className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+            >
+              Quay lại danh sách
+            </Link>
+          </div>
+        </div>
+
+        {loading && <div className={`${card} py-16 text-center text-stone-500`}>Đang tải dữ liệu…</div>}
+
+        {!loading && !detail && <div className={`${card} py-16 text-center text-stone-500`}>Không có dữ liệu</div>}
+
+        {detail && (
+          <>
+            {detail.isAnomalous && (
+              <section
+                className={`rounded-2xl border px-5 py-4 flex items-start gap-3 shadow-sm ${
+                  detail.anomalyReason === 'off_route'
+                    ? 'border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50'
+                    : 'border-red-200 bg-gradient-to-r from-red-50 to-rose-50'
+                }`}
+              >
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    detail.anomalyReason === 'off_route' ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'
+                  }`}
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-bold ${detail.anomalyReason === 'off_route' ? 'text-orange-800' : 'text-red-800'}`}>
+                    {detail.anomalyReason === 'stalled' && 'Hành trình kéo dài bất thường'}
+                    {detail.anomalyReason === 'off_route' && 'Lệch tuyến đường'}
+                    {!detail.anomalyReason && 'Hành trình bất thường'}
+                  </p>
+                  <p className={`text-xs mt-0.5 leading-relaxed ${detail.anomalyReason === 'off_route' ? 'text-orange-700' : 'text-red-700'}`}>
+                    {detail.anomalyReason === 'stalled' && 'Hành trình này đã chạy quá 8 tiếng, có thể người dùng đang gặp sự cố.'}
+                    {detail.anomalyReason === 'off_route' && 'GPS của chủ chuyến đang lệch > 5km khỏi tuyến đã thiết lập.'}
+                    {!detail.anomalyReason && 'Hệ thống phát hiện bất thường trên hành trình này.'}
+                    {detail.anomalyDetectedAt && (
+                      <span className="ml-2 opacity-70">Phát hiện lúc {new Date(detail.anomalyDetectedAt).toLocaleString('vi-VN')}</span>
+                    )}
+                  </p>
+                </div>
+              </section>
+            )}
+
+            <section className={card}>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Điểm đi</p>
+                  <p className="mt-1 text-sm font-semibold text-stone-900">{valueOrDash(detail.originAddress)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Điểm đến</p>
+                  <p className="mt-1 text-sm font-semibold text-stone-900">{valueOrDash(detail.destinationAddress)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Trạng thái</p>
+                  <p className="mt-1 text-sm text-stone-700">{displayJourneyStatus(detail.status)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Tạo lúc</p>
+                  <p className="mt-1 text-sm text-stone-700">{detail.createdAt ? formatDate(detail.createdAt) : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Chủ chuyến</p>
+                  <p className="mt-1 text-sm text-stone-900 font-semibold">{valueOrDash(detail.ownerFullName)}</p>
+                  <p className="mt-1 text-xs text-stone-500">Email: {valueOrDash(detail.ownerEmail)}</p>
+                  <p className="mt-0.5 text-xs text-stone-500">Số điện thoại: {valueOrDash(detail.ownerPhone)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Mã hành trình</p>
+                  <p className="mt-1 text-sm text-stone-700 font-mono break-all">{detail.id}</p>
+                </div>
+              </div>
+            </section>
+
+            <section className={card}>
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="font-['Cormorant_Garamond',serif] text-lg font-semibold text-stone-900">Bản đồ tổng quan</h2>
+                {!goongMapKey && <span className="text-xs font-semibold text-rose-700">Thiếu VITE_GOONG_MAP_KEY</span>}
+              </div>
+              <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200">
+                {!goongMapKey ? (
+                  <div className="flex h-[420px] items-center justify-center bg-stone-50 text-sm text-stone-600">
+                    Không thể hiển thị bản đồ vì thiếu cấu hình Goong Map key.
+                  </div>
+                ) : mapData.line.length < 2 && mapData.waypointPoints.length === 0 ? (
+                  <div className="flex h-[420px] items-center justify-center bg-stone-50 text-sm text-stone-600">
+                    Hành trình chưa có đủ dữ liệu tuyến/waypoint để vẽ.
+                  </div>
+                ) : (
+                  <div ref={mapContainerRef} className="h-[420px] w-full" />
+                )}
+              </div>
+            </section>
+
+            <section className={`${card} overflow-hidden p-0`}>
+              <div className="px-5 pt-5 pb-3 border-b border-stone-100">
+                <h2 className="font-['Cormorant_Garamond',serif] text-lg font-semibold text-stone-900">Các waypoint đã chọn</h2>
+              </div>
+              {sortedWaypoints.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-[560px] w-full table-fixed text-sm">
+                    <colgroup>
+                      <col className="w-[80px]" />
+                      <col className="min-w-0" />
+                      <col className="w-[44%]" />
+                    </colgroup>
+                    <thead>
+                      <tr className="bg-[#f5f0e8] text-left text-xs font-semibold uppercase tracking-wide text-stone-600">
+                        <th className="px-4 py-3">STT</th>
+                        <th className="px-4 py-3">Tên</th>
+                        <th className="px-4 py-3">Địa chỉ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {sortedWaypoints.map((wp, i) => (
+                        <tr key={wp.waypointId} className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/40'}>
+                          <td className="px-4 py-3 font-semibold text-stone-900">{wp.stopOrder}</td>
+                          <td className="px-4 py-3 text-stone-800 truncate" title={wp.name ?? ''}>
+                            {wp.name ?? '—'}
+                          </td>
+                          <td className="px-4 py-3 text-stone-600 truncate" title={wp.address ?? ''}>
+                            {wp.address ?? '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="px-5 py-6 text-sm text-stone-500">Chưa có waypoint nào được chọn.</div>
+              )}
+            </section>
+          </>
+        )}
+      </div>
+    </main>
+  )
+}

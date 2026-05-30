@@ -431,6 +431,9 @@ export interface JourneyWaypointResponse {
 export interface JourneyDetailResponse {
   id: string
   travelerId?: string | null
+  ownerFullName?: string | null
+  ownerEmail?: string | null
+  ownerPhone?: string | null
   originAddress?: string | null
   destinationAddress?: string | null
   vehicleType?: string | null
