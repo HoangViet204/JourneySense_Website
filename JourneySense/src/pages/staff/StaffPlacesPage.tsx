@@ -400,7 +400,7 @@ export default function StaffPlacesPage() {
                       <td className="px-3 py-3 whitespace-nowrap align-middle text-center">
                         <div className="flex items-center justify-center gap-0.5">
                           <Link
-                            to={`/staff/journeys/${row.id}`}
+                            to={`/staff/places/${row.id}`}
                             className={`${iconBtn} text-amber-800 hover:bg-amber-50`}
                             title="Chi tiết"
                             aria-label="Chi tiết"
