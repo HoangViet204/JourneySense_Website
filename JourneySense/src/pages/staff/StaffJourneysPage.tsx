@@ -105,8 +105,7 @@ function JourneyDetailDialog(props: {
               <div className="text-stone-800 font-semibold">{row.destinationAddress ?? '—'}</div>
               <div className="text-stone-500">Trạng thái</div>
               <div className="text-stone-800 font-semibold">{displayJourneyStatus(row.status)}</div>
-              <div className="text-stone-500">Tên hành trình</div>
-              <div className="text-stone-800 font-semibold">{detailLoading ? 'Đang tải…' : detail?.journeyName ?? detail?.name ?? '—'}</div>
+              {/* Journey name removed as requested */}
               <div className="text-stone-500">Thời gian bắt đầu</div>
               <div className="text-stone-800 font-semibold">{formatDate(row.startedAt ?? row.createdAt)}</div>
               <div className="text-stone-500">Chủ chuyến</div>
