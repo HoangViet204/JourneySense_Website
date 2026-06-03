@@ -431,9 +431,6 @@ export default function StaffExperienceDetailPage() {
                               <div className="font-medium text-stone-900 truncate max-w-[18rem]">
                                 {row.travelerFullName?.trim() || row.travelerId}
                               </div>
-                              {row.travelerFullName?.trim() && (
-                                <div className="text-[11px] text-stone-500 font-mono mt-0.5">du khách: {row.travelerId}</div>
-                              )}
                             </td>
                             <td className="px-4 py-3 text-stone-700 whitespace-nowrap">
                               {row.startedAt ? formatDate(row.startedAt) : '—'}

@@ -533,9 +533,6 @@ export default function StaffJourneyAnomaliesPage() {
                           <div className="font-medium text-stone-900 truncate" title={row.travelerFullName ?? row.travelerId ?? ''}>
                             {row.travelerFullName?.trim() || row.travelerId || '—'}
                           </div>
-                          <div className="text-[11px] text-stone-500 font-mono truncate mt-0.5" title={row.travelerId ?? ''}>
-                            {row.travelerId ? `id: ${row.travelerId}` : '—'}
-                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <span

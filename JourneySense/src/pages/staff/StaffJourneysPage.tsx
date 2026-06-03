@@ -434,7 +434,6 @@ export default function StaffJourneysPage() {
                       <td className="px-4 py-3 font-semibold text-stone-900 truncate" title={row.travelerFullName ?? row.travelerId ?? ''}>
                         <div className="flex flex-col min-w-0">
                           <span className="truncate">{row.travelerFullName?.trim() || row.travelerId || '—'}</span>
-                          <span className="text-[11px] text-stone-500 font-mono truncate">id: {row.travelerId ?? '—'}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3">
