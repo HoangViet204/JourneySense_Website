@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import api from '../../api/axios'
+import goongjs from '@goongmaps/goong-js'
+import '@goongmaps/goong-js/dist/goong-js.css'
 import { listInProgressJourneysUsingExperience, updateExperienceLocation, updateExperienceStatus } from '../../api/staffExperiences'
 import { useConfirmDialog } from '../../components/ConfirmDialog'
 import PortalUserMenu from '../../components/portal/PortalUserMenu'
@@ -125,6 +127,20 @@ export default function StaffExperienceDetailPage() {
   const [lngDraft, setLngDraft] = useState('')
   const [locationSaving, setLocationSaving] = useState(false)
 
+  type CoordinateMode = 'manual' | 'goong'
+  type PlaceSuggestion = { description: string; placeId: string; mainText?: string | null; secondaryText?: string | null }
+  type PlaceDetail = { name?: string | null; formattedAddress?: string | null; latitude?: number | null; longitude?: number | null }
+
+  const goongMapKey = import.meta.env.VITE_GOONG_MAP_KEY
+  const [coordinateMode, setCoordinateMode] = useState<CoordinateMode>('manual')
+  const [placeQuery, setPlaceQuery] = useState('')
+  const [placeSuggestions, setPlaceSuggestions] = useState<PlaceSuggestion[]>([])
+  const [placeLoading, setPlaceLoading] = useState(false)
+  const [selectedPlace, setSelectedPlace] = useState<PlaceDetail | null>(null)
+  const mapContainerRef = useRef<HTMLDivElement | null>(null)
+  const goongMapRef = useRef<any | null>(null)
+  const goongMarkerRef = useRef<any | null>(null)
+
   const [statusDraft, setStatusDraft] = useState<StaffExperienceStatus>('active')
   const [statusSaving, setStatusSaving] = useState(false)
 
@@ -190,6 +206,104 @@ export default function StaffExperienceDetailPage() {
       setPreviewLoading(false)
     }
   }, [experienceId, previewPage])
+
+  useEffect(() => {
+    if (coordinateMode !== 'goong') return
+    const q = placeQuery.trim()
+    if (q.length < 2) {
+      setPlaceSuggestions([])
+      return
+    }
+
+    const ctrl = new AbortController()
+    const t = window.setTimeout(() => {
+      void (async () => {
+        setPlaceLoading(true)
+        try {
+          const { data } = await api.get<PlaceSuggestion[] | unknown>('/api/goong/place-suggestions', {
+            params: { input: q, limit: 8 },
+            signal: ctrl.signal,
+          })
+          setPlaceSuggestions(Array.isArray(data) ? (data as PlaceSuggestion[]) : [])
+        } catch (e) {
+          setPlaceSuggestions([])
+        } finally {
+          setPlaceLoading(false)
+        }
+      })()
+    }, 350)
+
+    return () => {
+      ctrl.abort()
+      window.clearTimeout(t)
+    }
+  }, [coordinateMode, placeQuery])
+
+  const selectPlace = async (s: PlaceSuggestion) => {
+    setPlaceQuery(s.description)
+    setPlaceSuggestions([])
+    setPlaceLoading(true)
+    try {
+      const { data } = await api.get<PlaceDetail>('/api/goong/place-detail', {
+        params: { placeId: s.placeId },
+      })
+      setSelectedPlace(data)
+      const lat = data.latitude
+      const lng = data.longitude
+      if (lat != null && lng != null) {
+        setLatDraft(String(lat))
+        setLngDraft(String(lng))
+      }
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, 'Không lấy được chi tiết địa điểm từ Goong.'))
+    } finally {
+      setPlaceLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (coordinateMode !== 'goong') return
+    if (!goongMapKey) return
+    if (!mapContainerRef.current) return
+
+    const lat = Number(latDraft)
+    const lng = Number(lngDraft)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+
+    const sdk = goongjs as any
+    try {
+      if (!goongMapRef.current) {
+        sdk.accessToken = goongMapKey
+        goongMapRef.current = new sdk.Map({
+          container: mapContainerRef.current,
+          style: `https://tiles.goong.io/assets/goong_map_web.json?api_key=${encodeURIComponent(goongMapKey)}`,
+          center: [lng, lat],
+          zoom: 15,
+        })
+        goongMarkerRef.current = new sdk.Marker().setLngLat([lng, lat]).addTo(goongMapRef.current)
+        return
+      }
+
+      goongMapRef.current.setCenter([lng, lat])
+      if (goongMarkerRef.current) goongMarkerRef.current.setLngLat([lng, lat])
+    } catch {
+      // ignore map errors
+    }
+  }, [coordinateMode, goongMapKey, latDraft, lngDraft])
+
+  useEffect(() => {
+    return () => {
+      try {
+        if (goongMapRef.current) {
+          goongMapRef.current.remove()
+          goongMapRef.current = null
+          goongMarkerRef.current = null
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [])
 
   const load = useCallback(async () => {
     if (!experienceId) return
@@ -475,92 +589,173 @@ export default function StaffExperienceDetailPage() {
               </section>
 
               <section className="rounded-2xl bg-white border border-stone-200/80 shadow-md p-6 sm:p-7">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-bold text-stone-900 mb-1 font-['Cormorant_Garamond',serif]">
                       Cập nhật vị trí (lat/lng)
                     </h3>
                   </div>
-                  <div className="flex flex-wrap items-center justify-end gap-3">
-                    <label className="flex items-center gap-2 text-xs font-semibold text-stone-600">
-                      <span className="shrink-0">Vĩ độ</span>
-                      <input
-                        type="number"
-                        step="0.000001"
-                        inputMode="decimal"
-                        className="h-10 w-44 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
-                        placeholder="10.123456"
-                        value={latDraft}
-                        onChange={(e) => setLatDraft(e.target.value)}
-                        disabled={locationSaving}
-                      />
-                    </label>
-                    <label className="flex items-center gap-2 text-xs font-semibold text-stone-600">
-                      <span className="shrink-0">Kinh độ</span>
-                      <input
-                        type="number"
-                        step="0.000001"
-                        inputMode="decimal"
-                        className="h-10 w-44 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
-                        placeholder="106.123456"
-                        value={lngDraft}
-                        onChange={(e) => setLngDraft(e.target.value)}
-                        disabled={locationSaving}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className="inline-flex h-10 items-center justify-center rounded-xl bg-[#c5a070] px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f] disabled:opacity-60"
-                      disabled={locationSaving}
-                      onClick={() => {
-                        if (!experienceId) return
-                        if (locationSaving) return
+                  <div className="flex flex-col items-end gap-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCoordinateMode('manual')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                          coordinateMode === 'manual'
+                            ? 'bg-white border-amber-300 text-amber-900 ring-2 ring-amber-400/20'
+                            : 'bg-white/70 border-stone-200 text-stone-600 hover:bg-white'
+                        }`}
+                      >
+                        Nhập tay
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCoordinateMode('goong')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                          coordinateMode === 'goong'
+                            ? 'bg-white border-amber-300 text-amber-900 ring-2 ring-amber-400/20'
+                            : 'bg-white/70 border-stone-200 text-stone-600 hover:bg-white'
+                        }`}
+                      >
+                        Tìm trên Goong
+                      </button>
+                    </div>
 
-                        const lat = Number(latDraft)
-                        const lng = Number(lngDraft)
-                        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-                          toast.warning('Vĩ độ/Kinh độ không hợp lệ.')
-                          return
-                        }
-                        if (lat < -90 || lat > 90) {
-                          toast.warning('Vĩ độ phải nằm trong [-90, 90].')
-                          return
-                        }
-                        if (lng < -180 || lng > 180) {
-                          toast.warning('Kinh độ phải nằm trong [-180, 180].')
-                          return
-                        }
+                    {coordinateMode === 'manual' ? (
+                      <div className="flex flex-wrap items-center justify-end gap-3">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-stone-600">
+                          <span className="shrink-0">Vĩ độ</span>
+                          <input
+                            type="number"
+                            step="0.000001"
+                            inputMode="decimal"
+                            className="h-10 w-44 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
+                            placeholder="10.123456"
+                            value={latDraft}
+                            onChange={(e) => setLatDraft(e.target.value)}
+                            disabled={locationSaving}
+                          />
+                        </label>
+                        <label className="flex items-center gap-2 text-xs font-semibold text-stone-600">
+                          <span className="shrink-0">Kinh độ</span>
+                          <input
+                            type="number"
+                            step="0.000001"
+                            inputMode="decimal"
+                            className="h-10 w-44 rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 shadow-sm outline-none focus:ring-2 focus:ring-amber-400/30"
+                            placeholder="106.123456"
+                            value={lngDraft}
+                            onChange={(e) => setLngDraft(e.target.value)}
+                            disabled={locationSaving}
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="w-full max-w-md">
+                        <div className="relative">
+                          <input
+                            value={placeQuery}
+                            onChange={(e) => {
+                              setPlaceQuery(e.target.value)
+                              setSelectedPlace(null)
+                            }}
+                            className="h-10 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-900 shadow-sm outline-none"
+                            placeholder="Nhập tên quán, địa chỉ…"
+                          />
+                          {placeLoading && (
+                            <div className="absolute right-3 top-2 text-[11px] font-semibold text-stone-500">Đang tìm…</div>
+                          )}
+                          {placeSuggestions.length > 0 && (
+                            <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-lg">
+                              {placeSuggestions.map((sug) => (
+                                <button
+                                  key={sug.placeId}
+                                  type="button"
+                                  onClick={() => void selectPlace(sug)}
+                                  className="w-full text-left px-4 py-3 hover:bg-stone-50"
+                                >
+                                  <p className="text-sm font-semibold text-stone-900 truncate">{sug.mainText || sug.description}</p>
+                                  <p className="mt-0.5 text-xs text-stone-600 truncate">{sug.secondaryText || sug.description}</p>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
 
-                        void (async () => {
-                          if (previewTotal > 0) {
-                            const ok = await confirm({
-                              title: 'Xác nhận cập nhật vị trí',
-                              message: `Vị trí mới sẽ ảnh hưởng ${previewTotal.toLocaleString('vi-VN')} hành trình đang diễn ra (ứng dụng sẽ tự cập nhật).\nBạn vẫn muốn cập nhật?`,
-                              confirmText: 'Cập nhật',
-                              cancelText: 'Hủy',
-                            })
-                            if (!ok) return
+                        <div className="mt-3 grid grid-cols-2 gap-3">
+                          <input value={latDraft} readOnly className="h-10 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm text-stone-900 shadow-sm" placeholder="Vĩ độ" />
+                          <input value={lngDraft} readOnly className="h-10 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm text-stone-900 shadow-sm" placeholder="Kinh độ" />
+                        </div>
+
+                        <div className="mt-3 rounded-2xl border border-stone-200/80 bg-white p-3">
+                          {!goongMapKey && (
+                            <p className="text-xs text-stone-600">Chưa cấu hình VITE_GOONG_MAP_KEY nên chưa hiển thị bản đồ.</p>
+                          )}
+                          {goongMapKey && (
+                            <div ref={mapContainerRef} className="h-[160px] w-full overflow-hidden rounded-2xl bg-stone-100" aria-label="Bản đồ Goong" />
+                          )}
+                          {selectedPlace?.name && (
+                            <p className="mt-2 text-[11px] font-semibold text-stone-600 truncate">Đã chọn: <span className="text-stone-900">{selectedPlace.name}</span></p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <button
+                        type="button"
+                        className="inline-flex h-10 items-center justify-center rounded-xl bg-[#c5a070] px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#b08f5f] disabled:opacity-60"
+                        disabled={locationSaving}
+                        onClick={() => {
+                          if (!experienceId) return
+                          if (locationSaving) return
+
+                          const lat = Number(latDraft)
+                          const lng = Number(lngDraft)
+                          if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                            toast.warning('Vĩ độ/Kinh độ không hợp lệ.')
+                            return
+                          }
+                          if (lat < -90 || lat > 90) {
+                            toast.warning('Vĩ độ phải nằm trong [-90, 90].')
+                            return
+                          }
+                          if (lng < -180 || lng > 180) {
+                            toast.warning('Kinh độ phải nằm trong [-180, 180].')
+                            return
                           }
 
-                          setLocationSaving(true)
-                          const t = toast.loading('Đang cập nhật vị trí…')
-                          try {
-                            const res = await updateExperienceLocation(experienceId, { latitude: lat, longitude: lng })
-                            setDetail((prev) => (prev ? { ...prev, latitude: res.latitude, longitude: res.longitude } : prev))
-                            toast.success(`Đã cập nhật vị trí. Đã thông báo ${res.notifiedJourneyIds?.length ?? 0} hành trình.`, {
-                              id: t,
-                            })
-                            void loadPreview()
-                          } catch (e) {
-                            toast.error(getApiErrorMessage(e, 'Không cập nhật được vị trí.'), { id: t })
-                          } finally {
-                            setLocationSaving(false)
-                          }
-                        })()
-                      }}
-                    >
-                      Cập nhật
-                    </button>
+                          void (async () => {
+                            if (previewTotal > 0) {
+                              const ok = await confirm({
+                                title: 'Xác nhận cập nhật vị trí',
+                                message: `Vị trí mới sẽ ảnh hưởng ${previewTotal.toLocaleString('vi-VN')} hành trình đang diễn ra (ứng dụng sẽ tự cập nhật).\nBạn vẫn muốn cập nhật?`,
+                                confirmText: 'Cập nhật',
+                                cancelText: 'Hủy',
+                              })
+                              if (!ok) return
+                            }
+
+                            setLocationSaving(true)
+                            const t = toast.loading('Đang cập nhật vị trí…')
+                            try {
+                              const res = await updateExperienceLocation(experienceId, { latitude: lat, longitude: lng })
+                              setDetail((prev) => (prev ? { ...prev, latitude: res.latitude, longitude: res.longitude } : prev))
+                              toast.success(`Đã cập nhật vị trí. Đã thông báo ${res.notifiedJourneyIds?.length ?? 0} hành trình.`, {
+                                id: t,
+                              })
+                              void loadPreview()
+                            } catch (e) {
+                              toast.error(getApiErrorMessage(e, 'Không cập nhật được vị trí.'), { id: t })
+                            } finally {
+                              setLocationSaving(false)
+                            }
+                          })()
+                        }}
+                      >
+                        Cập nhật
+                      </button>
+                    </div>
                   </div>
                 </div>
               </section>
@@ -867,7 +1062,6 @@ export default function StaffExperienceDetailPage() {
                     <thead className="bg-stone-50 text-stone-600">
                       <tr>
                         <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Du khách</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Hành trình</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Ghé lúc</th>
                         <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide whitespace-nowrap">
                           Số phút
@@ -877,7 +1071,7 @@ export default function StaffExperienceDetailPage() {
                     <tbody className="divide-y divide-stone-100 bg-white">
                       {logLoading && (
                         <tr>
-                          <td colSpan={4} className="px-4 py-8 text-center text-stone-500">
+                          <td colSpan={3} className="px-4 py-8 text-center text-stone-500">
                             Đang tải…
                           </td>
                         </tr>
@@ -885,7 +1079,7 @@ export default function StaffExperienceDetailPage() {
 
                       {!logLoading && logItems.length === 0 && (
                         <tr>
-                          <td colSpan={4} className="px-4 py-8 text-center text-stone-500">
+                          <td colSpan={3} className="px-4 py-8 text-center text-stone-500">
                             {logFromUtc || logToUtc || logFromInput.trim() || logToInput.trim()
                               ? 'Không có dữ liệu trong khoảng thời gian đã chọn.'
                               : 'Chưa có dữ liệu lượt ghé thăm.'}
@@ -903,9 +1097,8 @@ export default function StaffExperienceDetailPage() {
                               {row.travelerFullName?.trim() && row.travelerEmail?.trim() && (
                                 <div className="text-[11px] text-stone-500 truncate max-w-[18rem]">{row.travelerEmail}</div>
                               )}
-                            </td>
-                            <td className="px-4 py-3 font-mono text-xs text-stone-600">{row.journeyId ?? '—'}</td>
-                            <td className="px-4 py-3 text-stone-700">{row.visitedAt ? formatDate(row.visitedAt) : '—'}</td>
+                              </td>
+                              <td className="px-4 py-3 text-stone-700">{row.visitedAt ? formatDate(row.visitedAt) : '—'}</td>
                             <td className="px-4 py-3 text-right font-semibold text-stone-900 whitespace-nowrap">
                               {row.actualDurationMinutes == null ? '—' : Math.round(row.actualDurationMinutes)}
                             </td>
