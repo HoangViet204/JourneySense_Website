@@ -396,18 +396,16 @@ export default function StaffJourneysPage() {
 
         <section className="rounded-2xl bg-white border border-stone-100 shadow-[0_2px_8px_rgba(0,0,0,0.03)] overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] table-fixed text-sm">
+            <table className="w-full min-w-[760px] table-fixed text-sm">
               <colgroup>
-                <col className="w-[28%]" />
-                <col className="w-[28%]" />
-                <col className="w-[14%]" />
-                <col className="w-[16%]" />
-                <col className="w-[14%]" />
+                <col className="w-[36%]" />
+                <col className="w-[20%]" />
+                <col className="w-[20%]" />
+                <col className="w-[24%]" />
               </colgroup>
               <thead>
                 <tr className="bg-[#f5f0e8]/90 text-left text-[11px] uppercase tracking-wider text-stone-600 font-semibold border-b border-stone-100">
-                  <th className="px-4 py-3">Điểm đi</th>
-                  <th className="px-4 py-3">Điểm đến</th>
+                  <th className="px-4 py-3">Du khách</th>
                   <th className="px-4 py-3">Trạng thái</th>
                   <th className="px-4 py-3">Bắt đầu</th>
                   <th className="px-4 py-3 text-center">Thao tác</th>
@@ -416,7 +414,7 @@ export default function StaffJourneysPage() {
               <tbody className="divide-y divide-stone-100">
                 {loading && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-stone-500">
+                    <td colSpan={4} className="px-4 py-10 text-center text-stone-500">
                       Đang tải…
                     </td>
                   </tr>
@@ -424,7 +422,7 @@ export default function StaffJourneysPage() {
 
                 {!loading && items.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-stone-500">
+                    <td colSpan={4} className="px-4 py-10 text-center text-stone-500">
                       Chưa có hành trình
                     </td>
                   </tr>
@@ -433,14 +431,11 @@ export default function StaffJourneysPage() {
                 {!loading &&
                   items.map((row, i) => (
                     <tr key={row.id} className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/40'}>
-                      <td className="px-4 py-3 font-semibold text-stone-900 truncate" title={row.originAddress ?? ''}>
+                      <td className="px-4 py-3 font-semibold text-stone-900 truncate" title={row.travelerFullName ?? row.travelerId ?? ''}>
                         <div className="flex flex-col min-w-0">
-                          <span className="truncate">{row.originAddress ?? '—'}</span>
-                          <span className="text-[11px] text-stone-500 font-mono truncate">id: {row.id}</span>
+                          <span className="truncate">{row.travelerFullName?.trim() || row.travelerId || '—'}</span>
+                          <span className="text-[11px] text-stone-500 font-mono truncate">id: {row.travelerId ?? '—'}</span>
                         </div>
-                      </td>
-                      <td className="px-4 py-3 truncate" title={row.destinationAddress ?? ''}>
-                        {row.destinationAddress ?? '—'}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">

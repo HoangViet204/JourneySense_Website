@@ -491,16 +491,16 @@ export default function StaffJourneyAnomaliesPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] table-fixed text-sm">
               <colgroup>
-                <col className="w-[14%]" />
+                <col className="w-[22%]" />
                 <col className="w-[10%]" />
                 <col className="w-[20%]" />
                 <col className="w-[20%]" />
                 <col className="w-[16%]" />
-                <col className="w-[20%]" />
+                <col className="w-[12%]" />
               </colgroup>
               <thead>
                 <tr className="bg-[#f5f0e8]/90 text-left text-[11px] uppercase tracking-wider text-stone-600 font-semibold border-b border-stone-100">
-                  <th className="px-4 py-3">Hành trình</th>
+                  <th className="px-4 py-3">Du khách</th>
                   <th className="px-4 py-3">Lý do</th>
                   <th className="px-4 py-3">Điểm đi</th>
                   <th className="px-4 py-3">Điểm đến</th>
@@ -530,9 +530,11 @@ export default function StaffJourneyAnomaliesPage() {
                     return (
                       <tr key={row.id} className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/40'}>
                         <td className="px-4 py-3">
-                          <div className="text-[11px] uppercase tracking-wider text-stone-400 font-semibold">Mã</div>
-                          <div className="text-[12px] text-stone-700 font-mono truncate" title={row.id}>
-                            {row.id}
+                          <div className="font-medium text-stone-900 truncate" title={row.travelerFullName ?? row.travelerId ?? ''}>
+                            {row.travelerFullName?.trim() || row.travelerId || '—'}
+                          </div>
+                          <div className="text-[11px] text-stone-500 font-mono truncate mt-0.5" title={row.travelerId ?? ''}>
+                            {row.travelerId ? `id: ${row.travelerId}` : '—'}
                           </div>
                         </td>
                         <td className="px-4 py-3">

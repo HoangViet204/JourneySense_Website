@@ -199,6 +199,7 @@ export interface AdminJourneyListItemDto {
 export interface StaffJourneyListItemDto {
   id: string
   travelerId?: string | null
+  travelerFullName?: string | null
   originAddress?: string | null
   destinationAddress?: string | null
   status?: string | null
@@ -220,6 +221,7 @@ export type StaffJourneyAnomalyReason = 'stalled' | 'offline'
 export interface StaffJourneyAnomalyListItemDto {
   id: string
   travelerId?: string | null
+  travelerFullName?: string | null
   originAddress?: string | null
   destinationAddress?: string | null
   status?: string | null
@@ -596,6 +598,7 @@ export type StaffExperienceVisitDurationLogResponse = PortalPagedResult<StaffExp
 export interface StaffExperienceInProgressJourneyItemDto {
   journeyId: string
   travelerId: string
+  travelerFullName?: string | null
   /** Backend always returns `in_progress` for this endpoint. */
   status: string
   startedAt: string

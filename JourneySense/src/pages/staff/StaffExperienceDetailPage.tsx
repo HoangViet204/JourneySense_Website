@@ -402,7 +402,7 @@ export default function StaffExperienceDetailPage() {
                   <table className="min-w-full text-sm">
                     <thead className="bg-stone-50 text-stone-600">
                       <tr>
-                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Hành trình</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Du khách</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Bắt đầu</th>
                         <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide">Tuyến</th>
                       </tr>
@@ -428,8 +428,12 @@ export default function StaffExperienceDetailPage() {
                         previewItems.map((row) => (
                           <tr key={row.journeyId} className="hover:bg-stone-50/70">
                             <td className="px-4 py-3">
-                              <div className="font-mono text-xs text-stone-700">{row.journeyId}</div>
-                              <div className="text-[11px] text-stone-500 font-mono mt-0.5">du khách: {row.travelerId}</div>
+                              <div className="font-medium text-stone-900 truncate max-w-[18rem]">
+                                {row.travelerFullName?.trim() || row.travelerId}
+                              </div>
+                              {row.travelerFullName?.trim() && (
+                                <div className="text-[11px] text-stone-500 font-mono mt-0.5">du khách: {row.travelerId}</div>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-stone-700 whitespace-nowrap">
                               {row.startedAt ? formatDate(row.startedAt) : '—'}
