@@ -223,8 +223,67 @@ export default function AdminPackagesPage() {
     if (!ok) return
     const t = toast.loading('Đang vô hiệu hóa…')
     try {
-      await api.delete(`/api/packages/${pkg.id}`)
+      await api.put(`/api/packages/${pkg.id}`, {
+        title: pkg.title,
+        price: pkg.price,
+        salePrice: pkg.salePrice ?? null,
+        type: pkg.type,
+        distanceLimitKm: pkg.distanceLimitKm,
+        durationInDays: pkg.durationInDays,
+        benefit: pkg.benefit ?? undefined,
+        isPopular: pkg.isPopular,
+        isActive: false,
+        pointsRequired: pkg.pointsRequired ?? null,
+      })
       toast.success('Đã vô hiệu hóa gói', { id: t })
+      void load()
+    } catch (e) {
+      toast.error(getApiErrorMessage(e), { id: t })
+    }
+  }
+
+  const reactivate = async (pkg: PackageResponseDto) => {
+    const ok = await confirm({
+      title: 'Kích hoạt lại gói',
+      message: `Kích hoạt lại gói «${pkg.title}»? Gói sẽ hiển thị lại trong danh sách công khai.`,
+      confirmText: 'Kích hoạt lại',
+      cancelText: 'Hủy',
+    })
+    if (!ok) return
+    const t = toast.loading('Đang kích hoạt lại…')
+    try {
+      await api.put(`/api/packages/${pkg.id}`, {
+        title: pkg.title,
+        price: pkg.price,
+        salePrice: pkg.salePrice ?? null,
+        type: pkg.type,
+        distanceLimitKm: pkg.distanceLimitKm,
+        durationInDays: pkg.durationInDays,
+        benefit: pkg.benefit ?? undefined,
+        isPopular: pkg.isPopular,
+        isActive: true,
+        pointsRequired: pkg.pointsRequired ?? null,
+      })
+      toast.success('Đã kích hoạt lại gói', { id: t })
+      void load()
+    } catch (e) {
+      toast.error(getApiErrorMessage(e), { id: t })
+    }
+  }
+
+  const deletePackage = async (pkg: PackageResponseDto) => {
+    const ok = await confirm({
+      title: 'Xóa gói dịch vụ',
+      message: `Xóa gói «${pkg.title}»? Thao tác này không thể hoàn tác.`,
+      confirmText: 'Xóa',
+      cancelText: 'Hủy',
+      danger: true,
+    })
+    if (!ok) return
+    const t = toast.loading('Đang xóa gói…')
+    try {
+      await api.delete(`/api/packages/${pkg.id}`)
+      toast.success('Đã xóa gói', { id: t })
       void load()
     } catch (e) {
       toast.error(getApiErrorMessage(e), { id: t })
@@ -398,7 +457,7 @@ export default function AdminPackagesPage() {
                   {!pkg.isActive && (
                     <button
                       type="button"
-                      onClick={() => openEdit(pkg)}
+                      onClick={() => void reactivate(pkg)}
                       className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors shadow-sm"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -407,6 +466,16 @@ export default function AdminPackagesPage() {
                       Kích hoạt lại
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => void deletePackage(pkg)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors shadow-sm"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3m-4 0h14" />
+                    </svg>
+                    Xóa
+                  </button>
                 </div>
               </div>
             ))}
